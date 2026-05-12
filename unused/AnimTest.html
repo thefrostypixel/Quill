@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Anim Test</title>
+        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+        <meta name="viewport" content="initial-scale=1">
+        <meta name="description" content="">
+        <meta charset="UTF-8">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'></svg>">
+        <link rel="stylesheet" href="style.css">
+        <script src="antica/Anim.js"></script>
+        <script src="antica/Controls.js"></script>
+        <script src="antica/DOMUtils.js"></script>
+        <script src="antica/Time.js"></script>
+        <style>
+            div {
+                position: fixed;
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                mix-blend-mode: plus-lighter;
+            }
+            #r {
+                background: #B00;
+            }
+            #g {
+                background: #3A2;
+            }
+            #b {
+                background: #46F;
+            }
+        </style>
+    </head>
+    <bod>
+        <span></span>
+        <div id="r"></div>
+        <div id="g"></div>
+        <div id="b"></div>
+        <script>
+            let time = new antica.Time();
+            let anims = [
+                {accel: 20000},
+                {accel: 25000},
+                {accel: 30000},
+                // {accel: 100000},
+            ].map((options, i) => Object.assign(new antica.Anim({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+            }), options, {
+                id: i,
+            }));
+            anims.forEach(anim => {
+                anim.axes.x.min = 0;
+                anim.axes.x.max = window.innerWidth;
+                anim.axes.y.min = 0;
+                anim.axes.y.max = window.innerHeight;
+            });
+            anims.forEach((anim, i) => {
+                anim.callback = values => {
+                    $("div").at(i).style({left: `${values.x - 20}px`, top: `${values.y - 20}px`});
+                };
+            });
+            time.repeat(() => {
+                $("span").text = anims.map((anim, i) => `[${i}] Target: ${anim.axes.x.target} ${anim.axes.y.target}\n[${i}] Pos: ${anim.axes.x.value} ${anim.axes.y.value}\n[${i}] Vel: ${anim.axes.x.vel} ${anim.axes.y.vel}`).join("\n");
+            });
+            document.onmousemove = e => anims.forEach(anim => {
+                anim.values.x = e.clientX;
+                anim.values.y = e.clientY;
+            });
+        </script>
+    </bod>
+</html>

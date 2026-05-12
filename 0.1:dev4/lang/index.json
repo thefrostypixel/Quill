@@ -1,0 +1,10 @@
+{
+    "primary": {
+        "en": "US",
+        "de": "DE"
+    },
+    "codes": {
+        "en-US": "English (United States)",
+        "de-DE": "Deutsch (Deutschland)"
+    }
+}

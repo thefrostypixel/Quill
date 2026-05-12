@@ -1,0 +1,207 @@
+table-of-contents Table of contents
+view-options View options
+add-content Add content
+
+inspector Inspector
+inspector.text Text
+inspector.table Table
+inspector.layout Layout
+inspector.document Document
+inspector.text.paragraph-style Paragraph style
+inspector.text.section-overwrite Section overwrite
+inspector.section-overwrite.none None
+inspector.text.text Text
+
+text.family Font family
+text.family.default Default
+text.family.document In document
+text.size Font size
+text.weight Font weight
+text.weight.100 Ultralight
+text.weight.200 Thin
+text.weight.300 Light
+text.weight.400 Regular
+text.weight.500 Medium
+text.weight.600 Semibold
+text.weight.700 Bold
+text.weight.800 Heavy
+text.weight.900 Black
+text.color Text color
+text.bold Bold
+text.italic Italic
+text.italic.upright Upright
+text.italic.italic Italic
+text.underline Underline
+text.strikethrough Strikethrough
+text.outline Outline
+text.shadow Shadow
+text.more More
+text.baseline Baseline
+text.baseline.base Default
+text.baseline.sup Superscript
+text.baseline.sub Subscript
+text.capitalization Capitalization
+text.capitalization.default Default
+text.capitalization.all-caps All caps
+text.capitalization.no-caps No caps
+text.capitalization.start-caps Start caps
+text.small-caps Small caps
+text.small-caps.lowercase Lowercase
+text.small-caps.small-caps Small caps
+text.background Text background
+text.line-spacing Line spacing
+text.paragraph-spacing.above Above paragraph
+text.paragraph-spacing.below Below paragraph
+text.list List
+text.list.indentation Indentation
+text.list.label Label
+text.list.bullet Bullet
+text.list.bullet.custom Custom
+text.list.counting Counting
+text.list.counting.repeat-hierarchy Repeat hierarchy
+text.list.counting.reset Reset counter
+text.list.counting.set Set counter to
+text.list.decoration Decoration
+text.list.decoration.custom Custom
+text.list.decoration.prefix Prefix
+text.list.decoration.separator Separator
+text.list.decoration.suffix Suffix
+text.list.text-indentation Text Indentation
+text.indentation Indentation
+text.indentation.step-size Step Size
+
+line Line
+line.n Line <n>
+line.style Line style
+line.style.n Line <n> style
+line.none None
+line.solid Solid
+line.dashed Dashed
+line.dotted Dotted
+line.wave Wave
+line.stacked Stacked
+line.count Lines
+line.space Line space
+line.width Line width
+line.width.n Line <n> width
+line.dash-length Dash lengths
+line.dash-length.n Line <n> dash lengths
+line.dash-gap Dash gaps
+line.dash-gap.n Line <n> dash gaps
+line.dot-gap Dot gaps
+line.dot-gap.n Line <n> dot gaps
+line.wave-size Wave size
+line.color Line color
+line.color.n Line <n> color
+
+align.horizontal.left Horizontally align left
+align.horizontal.center Horizontally align center
+align.horizontal.right Horizontally align right
+align.horizontal.stretch Horizontally stretch
+align.vertical.top Vertically align top
+align.vertical.middle Vertically align middle
+align.vertical.bottom Vertically align bottom
+
+table Table
+table.row-count Rows
+table.colum-count Columns
+table.headers Headers
+table.header-count.top Header rows
+table.header-count.bottom Footer rows
+table.header-count.left Header columns
+table.cell Cell
+table.column-width Column width
+table.row-height Row height
+table.data-type Data type
+table.data-type.text Text
+table.data-type.number Number
+table.data-type.boolean Boolean
+table.data-type.date Date & Time
+table.cell-background Cell background
+table.borders Borders
+table.borders.all All borders
+table.borders.outer Outer borders
+table.borders.inner Inner borders
+table.borders.left Left border
+table.borders.center Center borders
+table.borders.right Right border
+table.borders.top Top border
+table.borders.middle Middle borders
+table.borders.bottom Bottom border
+
+layout.position.fixed Fixed position
+layout.position.left Left
+layout.position.top Top
+layout.push-text Push text
+layout.space Space
+layout.tight-flow Flow around shape
+
+object.size Object size
+object.size.width Width
+object.size.height Height
+object.transformations Transformations
+object.transformation Transformation
+object.transformation.rotate Rotate
+object.transformation.rotate.angle Angle
+object.transformation.mirror Mirror
+object.transformation.mirror.direction Direction
+
+page.size Page size
+page.size.template Template
+page.size.template.paper Paper
+page.size.template.screen Screen
+page.size.template.a1 A1
+page.size.template.a2 A2
+page.size.template.a3 A3
+page.size.template.a4 A4
+page.size.template.a5 A5
+page.size.template.a6 A6
+page.size.template.letter Letter
+page.size.template.hd HD
+page.size.template.4k 4K
+page.size.fixed-width Fixed width
+page.size.fixed-height Fixed height
+page.size.width Width
+page.size.height Height
+page.margin Margin
+page.margin.top Top
+page.margin.bottom Bottom
+page.margin.left Left
+page.margin.right Right
+page.header Header
+page.header.height Height
+page.header.margin Margin
+page.footer Footer
+page.footer.height Height
+page.footer.margin Margin
+page.background Page background
+page.main-content Main content
+page.apply-to-all-sections Apply to all sections
+
+color.solid Solid color
+color.linear Linear gradient
+color.radial Radial gradient
+color.solid.grid Grid
+color.solid.hsl HSL
+color.solid.rgb RGB
+color.solid.hue Hue
+color.solid.saturation Saturation
+color.solid.lightness Lightness
+color.solid.red Red
+color.solid.green Green
+color.solid.blue Blue
+color.solid.alpha Alpha
+color.solid.code Code
+color.gradient.simple Simple
+color.gradient.advanced Advanced
+color.gradient.advanced.positions Positions
+color.gradient.advanced.position Position
+color.gradient.advanced.color Color
+color.linear.direction Direction
+color.cancel Cancel
+color.done Done
+
+list-select.none None
+list-select.multiple Multiple
+
+colon <t>:

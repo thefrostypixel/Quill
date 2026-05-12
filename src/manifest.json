@@ -1,0 +1,10 @@
+{
+    "name": "Quill UI 3",
+    "description": "",
+    "icons": [{"src":"/Quill.png"}],
+    "scope": "/",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#333",
+    "categories": ["productivity"]
+}

@@ -1,0 +1,33 @@
+<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="16" height="16" fill="black"/>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(0 8 8)">
+        <animate attributeName="cx" begin="-6s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(30 8 8)">
+        <animate attributeName="cx" begin="-5.5s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(60 8 8)">
+        <animate attributeName="cx" begin="-5s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(90 8 8)">
+        <animate attributeName="cx" begin="-4.5s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(120 8 8)">
+        <animate attributeName="cx" begin="-4s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(150 8 8)">
+        <animate attributeName="cx" begin="-3.5s" dur="6s" values="2;8;14;8;2" calcMode="spline" keySplines="0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8;0.8 0.2 0.8 0.2;0.2 0.8 0.2 0.8" repeatCount="indefinite"/>
+    </circle>
+</svg>
+<!--
+let anim1 = .8;
+let anim2 = .2;
+let count = 6;
+let dur = 6;
+console.log(`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="16" height="16" fill="black"/>
+${Array(count).fill(0).map((c, i) => `    <circle cx="8" cy="8" r="1" fill="white" transform="rotate(${i * 180 / count} 8 8)">
+        <animate attributeName="cx" begin="${Math.round(dur * (i / count - 2) * 1e8) / 2e8}s" dur="${dur}s" values="2;8;14;8;2" calcMode="spline" keySplines="${`;${anim1} ${anim2} ${anim1} ${anim2};${anim2} ${anim1} ${anim2} ${anim1}`.repeat(2).substring(1)}" repeatCount="indefinite"/>
+    </circle>
+`).join("")}</svg>`);
+-->

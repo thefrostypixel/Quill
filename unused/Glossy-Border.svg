@@ -1,0 +1,108 @@
+<svg width="36" height="36" xmlns="http://www.w3.org/2000/svg">
+<!--<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">-->
+<!--    <rect x="0" y="0" width="36" height="36" fill="#000"/>-->
+
+    <mask id="0-1">
+        <rect x=".5" y=".5" width="35" height="35" rx="11.5" fill="#000" stroke-width="1" stroke="#FFF"/>
+    </mask>
+    <mask id="0-2">
+        <rect x="1" y="1" width="34" height="34" rx="11" fill="#000" stroke-width="2" stroke="#FFF"/>
+    </mask>
+    <mask id="0-12">
+        <rect x="6" y="6" width="24" height="24" rx="6" fill="#000" stroke-width="12" stroke="#FFF"/>
+    </mask>
+
+    <mask id="background">
+        <g mask="url(#0-12)">
+            <radialGradient id="i1g1" cx="1" cy="1" r="1">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFFF"/>
+            </radialGradient>
+            <rect x="0" y="0" width="12" height="12" fill="url(#i1g1)"/>
+            <linearGradient id="i2g1" x2="0" y2="1">
+                <stop offset="0" stop-color="#FFFF"/>
+                <stop offset="1" stop-color="#FFF8"/>
+            </linearGradient>
+            <rect x="12" y="0" width="12" height="12" fill="url(#i2g1)"/>
+            <linearGradient id="i3g1" x2="1" y2="0">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFF4"/>
+            </linearGradient>
+            <rect x="24" y="0" width="12" height="12" fill="url(#i3g1)"/>
+            <mask id="i3m1">
+                <linearGradient id="i3g2" x2="1" y2="0">
+                    <stop offset="0" stop-color="#FFFF"/>
+                    <stop offset="1" stop-color="#FFF0"/>
+                </linearGradient>
+                <rect x="24" y="0" width="12" height="12" fill="url(#i3g2)"/>
+            </mask>
+            <g mask="url(#i3m1)">
+                <linearGradient id="i3g3" x2="0" y2="1">
+                    <stop offset="0" stop-color="#FFFF"/>
+                    <stop offset="1" stop-color="#FFF0"/>
+                </linearGradient>
+                <rect x="24" y="0" width="12" height="12" fill="url(#i3g3)"/>
+            </g>
+            <linearGradient id="i4g1" x2="1" y2="0">
+                <stop offset="0" stop-color="#FFFF"/>
+                <stop offset="1" stop-color="#FFF8"/>
+            </linearGradient>
+            <rect x="0" y="12" width="12" height="12" fill="url(#i4g1)"/>
+            <linearGradient id="i6g1" x2="1" y2="0">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFF4"/>
+            </linearGradient>
+            <rect x="24" y="12" width="12" height="12" fill="url(#i6g1)"/>
+            <linearGradient id="i7g1" x2="0" y2="1">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFF4"/>
+            </linearGradient>
+            <rect x="0" y="24" width="12" height="12" fill="url(#i7g1)"/>
+            <mask id="i7m1">
+                <linearGradient id="i7g2" x2="0" y2="1">
+                    <stop offset="0" stop-color="#FFFF"/>
+                    <stop offset="1" stop-color="#FFF0"/>
+                </linearGradient>
+                <rect x="0" y="24" width="12" height="12" fill="url(#i7g2)"/>
+            </mask>
+            <g mask="url(#i7m1)">
+                <linearGradient id="i7g3" x2="1" y2="0">
+                    <stop offset="0" stop-color="#FFFF"/>
+                    <stop offset="1" stop-color="#FFF0"/>
+                </linearGradient>
+                <rect x="0" y="24" width="12" height="12" fill="url(#i7g3)"/>
+            </g>
+            <linearGradient id="i8g1" x2="0" y2="1">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFF4"/>
+            </linearGradient>
+            <rect x="12" y="24" width="12" height="12" fill="url(#i8g1)"/>
+            <radialGradient id="i9g1" cx="0" cy="0" r="1">
+                <stop offset="0" stop-color="#FFF8"/>
+                <stop offset="1" stop-color="#FFF4"/>
+            </radialGradient>
+            <rect x="24" y="24" width="12" height="12" fill="url(#i9g1)"/>
+        </g>
+        <rect x="12" y="12" width="12" height="12" fill="#FFF8"/>
+    </mask>
+    <rect x="0" y="0" width="36" height="36" fill="#FFF4" mask="url(#background)"/>
+
+    <g mask="url(#0-2)">
+        <foreignObject x="0" y="0" width="12" height="12">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width: 12px; height: 12px; background: conic-gradient(from 0 at 100% 100%, #FFF6, #FFF1, #FFF1, #FFF5, #FFF5, #FFF5, #FFF5, #FFF1, #FFF1, #FFF6, #FFF6, #FFF6, #FFF6);"/>
+        </foreignObject>
+        <rect x="12" y="0" width="12" height="12" fill="#FFF6"/>
+        <foreignObject x="24" y="0" width="12" height="12">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width: 12px; height: 12px; background: conic-gradient(from 0 at 0% 100%, #FFF6, #FFF1, #FFF1, #FFF5, #FFF5, #FFF5, #FFF5, #FFF1, #FFF1, #FFF6, #FFF6, #FFF6, #FFF6);"/>
+        </foreignObject>
+        <rect x="0" y="12" width="12" height="12" fill="#FFF6"/>
+        <rect x="24" y="12" width="12" height="12" fill="#FFF5"/>
+        <foreignObject x="0" y="24" width="12" height="12">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width: 12px; height: 12px; background: conic-gradient(from 0 at 100% 0%, #FFF6, #FFF1, #FFF1, #FFF5, #FFF5, #FFF5, #FFF5, #FFF1, #FFF1, #FFF6, #FFF6, #FFF6, #FFF6);"/>
+        </foreignObject>
+        <rect x="12" y="24" width="12" height="12" fill="#FFF5"/>
+        <foreignObject x="24" y="24" width="12" height="12">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width: 12px; height: 12px; background: conic-gradient(from 0 at 0% 0%, #FFF6, #FFF1, #FFF1, #FFF5, #FFF5, #FFF5, #FFF5, #FFF1, #FFF1, #FFF6, #FFF6, #FFF6, #FFF6);"/>
+        </foreignObject>
+    </g>
+</svg>

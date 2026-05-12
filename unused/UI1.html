@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title></title>
+        <meta name="viewport" content="initial-scale=1">
+        <meta name="description" content="">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'></svg>">
+        <style>
+            html {
+                --header-height: 40px;
+                --nav-width: 150px;
+                --options-width: 300px;
+
+                --d0: #000000;
+                --d1: #080808;
+                --d2: #101010;
+                --d3: #181818;
+                --d4: #202020;
+                --d5: #282828;
+                --d6: #303030;
+                --d7: #383838;
+                --d8: #404040;
+                --d9: #484848;
+                --dA: #505050;
+                --dB: #585858;
+                --dC: #606060;
+                --dD: #686868;
+                --dE: #707070;
+                --dF: #787878;
+
+                --b0: #808080;
+                --b1: #888888;
+                --b2: #909090;
+                --b3: #989898;
+                --b4: #A0A0A0;
+                --b5: #A8A8A8;
+                --b6: #B0B0B0;
+                --b7: #B8B8B8;
+                --b8: #C0C0C0;
+                --b9: #C8C8C8;
+                --bA: #D0D0D0;
+                --bB: #D8D8D8;
+                --bC: #E0E0E0;
+                --bD: #E8E8E8;
+                --bE: #F0F0F0;
+                --bF: #F8F8F8;
+
+                --a0: #448CD500;
+                --a8: #6288B2;
+                --aF: #448CD5FF;
+
+                --button-background: var(--dB);
+                --button-disabled-background: var(--d6);
+                --button-toggle-background: var(--d8);
+                --button-toggled-background: var(--dE);
+                --button-highlight: #FFF2;
+                --button-shadow: #0003;
+                --button-focus: #FFF2;
+
+                --list-popup-background: #282828A0;
+                --list-popup-border: var(--dE);
+                --list-popup-border-outer: var(--d5);
+            }
+            body {
+                background: url("Wallpaper.jpg");
+            }
+            box {
+                position: fixed;
+                left: 45vw;
+                top: 40vh;
+                width: 10vw;
+                height: 20vh;
+                background: #0000;
+                backdrop-filter: blur(6px) brightness(.9) saturate(1.2) contrast(1.1);
+                border: 6px solid #0000;
+                border-image: url("Glossy-Border.svg") 12 fill / 2;
+                border-radius: 12px;
+                box-shadow: 0 6px 12px 0 #0008;
+            }
+
+            :is(button, input, number-input div, toggle-button, angle-input, list-select, color-input) {
+                position: relative;
+                display: inline-block;
+                width: 100%;
+                height: 28px;
+                padding: 6px 8px;
+                box-sizing: border-box;
+                border: none;
+                border-radius: 8px;
+                outline: none;
+                background: var(--button-background);
+                color: inherit;
+                text-align: center;
+                font-size: 14px;
+                cursor: pointer;
+                user-select: none;
+                -webkit-user-select: none;
+                transition: background .1s;
+            }
+            :is(button, input[type=range], button-box, toggle-button, angle-input, list-select, text-input, number-input, color-input, .button-highlights)::before {
+                content: "";
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: calc(100% - 2px);
+                border-top: 1px solid var(--button-highlight);
+                border-bottom: 1px solid var(--button-shadow);
+                border-radius: inherit;
+                pointer-events: none;
+                z-index: 1;
+                transition: background .1s;
+            }
+            :is(button, toggle-button, angle-input, list-select, color-input):not(._):focus-visible::before {
+                background: var(--button-focus);
+            }
+            :is(button, toggle-button, angle-input, list-select)[disabled]:not(._) {
+                background: var(--button-disabled-background);
+            }
+            text-input {
+                position: relative;
+                border-radius: 8px;
+            }
+            :is(input, number-input div):not(._) {
+                background: var(--button-disabled-background);
+                border: none;
+                border-radius: inherit;
+                outline: none;
+                text-align: left;
+                white-space: nowrap;
+                overflow: scroll;
+                cursor: text;
+            }
+            input[type=range]:not(._) {
+                cursor: pointer;
+            }
+
+        </style>
+    </head>
+    <body>
+        <box>
+            <!--<div>
+                <button>Example Tile</button>
+                <br><br>
+                <input value="Hello World!">
+            </div>-->
+        </box>
+    </body>
+</html>

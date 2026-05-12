@@ -1,0 +1,10 @@
+#!/bin/zsh
+if [ -z "$1" ]; then
+    echo "Please provide a version."
+    exit 1
+fi
+mkdir "$1"
+rsync -a --exclude=".*" "./src/" "./$1/"
+sed -i '' "s|/src/|/$1/|g" "$1/index.html"
+cp "$1/index.html" "index.html"
+echo "$1" > "latest.txt"

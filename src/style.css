@@ -1,0 +1,951 @@
+/*@supports (font-variation-settings: normal) {
+    @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url("https://rsms.me/inter/font-files/InterVariable.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 100 900; font-display: swap; src: url("https://rsms.me/inter/font-files/InterVariable-Italic.woff2?v=4.1") format("woff2"); }
+}
+
+@supports not (font-variation-settings: normal) {
+    @font-face { font-family: Inter; font-style: normal; font-weight: 100; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Thin.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 100; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-ThinItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 200; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-ExtraLight.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 200; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-ExtraLightItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 300; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Light.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 300; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-LightItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 400; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Regular.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 400; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Italic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 500; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Medium.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 500; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-MediumItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 600; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-SemiBold.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 600; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-SemiBoldItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 700; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Bold.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 700; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-BoldItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 800; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-ExtraBold.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 800; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-ExtraBoldItalic.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: normal; font-weight: 900; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-Black.woff2?v=4.1") format("woff2"); }
+    @font-face { font-family: Inter; font-style: italic; font-weight: 900; font-display: swap; src: url("https://rsms.me/inter/font-files/Inter-BlackItalic.woff2?v=4.1") format("woff2"); }
+}*/
+
+/* TODO Make everything box-sizing: border-box. */
+
+[inert] {
+    pointer-events: none;
+}
+
+* {
+    font-family: Helvetica;
+    font-optical-sizing: none;
+}
+
+html {
+    --header-height: 40px;
+    --nav-width: 150px;
+    --options-width: 300px;
+
+    --d0: #000000;
+    --d1: #080808;
+    --d2: #101010;
+    --d3: #181818;
+    --d4: #202020;
+    --d5: #282828;
+    --d6: #303030;
+    --d7: #383838;
+    --d8: #404040;
+    --d9: #484848;
+    --dA: #505050;
+    --dB: #585858;
+    --dC: #606060;
+    --dD: #686868;
+    --dE: #707070;
+    --dF: #787878;
+
+    --b0: #808080;
+    --b1: #888888;
+    --b2: #909090;
+    --b3: #989898;
+    --b4: #A0A0A0;
+    --b5: #A8A8A8;
+    --b6: #B0B0B0;
+    --b7: #B8B8B8;
+    --b8: #C0C0C0;
+    --b9: #C8C8C8;
+    --bA: #D0D0D0;
+    --bB: #D8D8D8;
+    --bC: #E0E0E0;
+    --bD: #E8E8E8;
+    --bE: #F0F0F0;
+    --bF: #F8F8F8;
+
+    --a0: #448CD500;
+    --a8: #6288B2;
+    --aF: #448CD5FF;
+
+    --button-background: var(--dB);
+    --button-disabled-background: var(--d6);
+    --button-toggle-background: var(--d8);
+    --button-toggled-background: var(--dE);
+    --button-highlight: #FFF2;
+    --button-shadow: #0003;
+    --button-focus: #FFF2;
+
+    --popup-background: #282828A0;
+    --popup-border: var(--dE);
+    --popup-border-outer: var(--d5);
+}
+
+body {
+    background: var(--d4);
+    color: var(--bD);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+button svg {
+    pointer-events: none;
+}
+
+header {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: var(--header-height);
+    display: flex;
+    justify-content: space-between;
+    background: var(--d6);
+}
+
+header > * {
+    position: absolute;
+    top: 5px;
+    display: flex;
+}
+header > left {
+    left: 5px;
+}
+header > middle {
+    left: 50%;
+    transform: translateX(-50%);
+}
+header > right {
+    right: 5px;
+}
+
+header button {
+    width: 50px;
+    height: calc(var(--header-height) - 10px);
+    padding: 5px;
+    border: none;
+    border-radius: 10px;
+    font-size: 17px;
+    background: none;
+}
+header button:hover {
+    background: #FFF1;
+}
+
+nav[side=left] {
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    width: calc(var(--nav-width) - 20px);
+    height: calc(100% - var(--header-height));
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    background: var(--d5);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform .25s;
+}
+nav[side=left][hidden] {
+    transform: translateX(-100%);
+}
+nav button:not(._) {
+    display: block;
+    width: calc(var(--nav-width) - 20px);
+    height: auto;
+    padding: 5px;
+    border: none;
+    border-radius: 10px;
+    background: none;
+}
+nav button span {
+    display: block;
+    width: calc(var(--nav-width) - 30px);
+    font-size: 110px;
+    font-weight:  100;
+}
+
+
+
+body > inspector {
+    position: fixed;
+    display: block;
+    right: 0;
+    top: var(--header-height);
+    width: var(--options-width);
+    height: calc(100% - var(--header-height));
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    background: var(--d5);
+    transition: transform .25s;
+}
+body > inspector[hidden] {
+    transform: translateX(100%);
+}
+
+body > inspector span:not(span span) > a.colon::after {
+    content: ":";
+}
+
+body > inspector span:not(span span) {
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+    transition: height .25s, margin .25s, opacity .25s, transform .25s;
+}
+body > inspector span:not(span span).name {
+    height: auto;
+    font-weight:  bold;
+}
+body > inspector span:not(span span).separator {
+    display: block;
+    height: 1px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    background: var(--dA);
+}
+body > inspector span + span:not(span span).separator {
+    margin-top: 10px;
+}
+body > inspector span:not(span span) > * {
+    flex: 1 0 0;
+}
+[grow="2"] {
+    flex: 2 0 4px;
+}
+[grow="3"] {
+    flex: 3 0 8px;
+}
+[grow="4"] {
+    flex: 4 0 12px;
+}
+[grow="5"] {
+    flex: 5 0 16px;
+}
+
+body > inspector *:not(span * *).s1-1 > * {
+    width: 50%;
+}
+body > inspector *:not(span * *).s1-1-1 > * {
+    width: calc(100% / 3);
+}
+body > inspector *:not(span * *).s1-2-2 > :first-child {
+    width: 20%;
+}
+body > inspector *:not(span * *).s1-2-2 > * {
+    width: 40%;
+}
+body > inspector *:not(span * *).s2-1 > :nth-child(1) {
+    width: calc(200% / 3);
+}
+body > inspector *:not(span * *).s2-1 > * {
+    width: calc(100% / 3);
+}
+body > inspector *:not(span * *).s2-1-1 > :nth-child(1) {
+    width: 50%;
+}
+body > inspector *:not(span * *).s2-1-1 > * {
+    width: 25%;
+}
+body > inspector *:not(span * *).s2-3 > :nth-child(1) {
+    width: 40%;
+}
+body > inspector *:not(span * *).s2-3 > * {
+    width: 60%;
+}
+body > inspector *:not(span * *).s3-1 > :nth-child(1) {
+    width: 75%;
+}
+body > inspector *:not(span * *).s3-1 > * {
+    width: 25%;
+}
+body > inspector *:not(span * *).s3-1-1 > :nth-child(1) {
+    width: 60%;
+}
+body > inspector *:not(span * *).s3-1-1 > * {
+    width: 20%;
+}
+body > inspector *:not(span * *).s3-1-1-1 > :nth-child(1) {
+    width: 50%;
+}
+body > inspector *:not(span * *).s3-1-1-1 > * {
+    width: calc(50% / 3);
+}
+body > inspector *:not(span * *).s3-1-1-1-1 > :nth-child(1) {
+    width: calc(300% / 7);
+}
+body > inspector *:not(span * *).s3-1-1-1-1 > * {
+    width: calc(100% / 7);
+}
+body > inspector *:not(span * *).s3-2 > :nth-child(1) {
+    width: 60%;
+}
+body > inspector *:not(span * *).s3-2 > * {
+    width: 40%;
+}
+body > inspector *:not(span * *).s3-2-2 > :nth-child(1) {
+    width: calc(300% / 7);
+}
+body > inspector *:not(span * *).s3-2-2 > * {
+    width: calc(200% / 7);
+}
+body > inspector *:not(span * *).s5-2-2 > :nth-child(1) {
+    width: calc(500% / 9);
+}
+body > inspector *:not(span * *).s5-2-2 > * {
+    width: calc(200% / 9);
+}
+body > inspector *:not(span * *).s5-3-4 > :nth-child(1) {
+    width: calc(500% / 12);
+}
+body > inspector *:not(span * *).s5-3-4 > :nth-child(2) {
+    width: calc(300% / 12);
+}
+body > inspector *:not(span * *).s5-3-4 > :nth-child(3) {
+    width: calc(400% / 12);
+}
+body > inspector *:not(span * *).s5-4-3 > :nth-child(1) {
+    width: calc(500% / 12);
+}
+body > inspector *:not(span * *).s5-4-3 > :nth-child(2) {
+    width: calc(400% / 12);
+}
+body > inspector *:not(span * *).s5-4-3 > :nth-child(3) {
+    width: calc(300% / 12);
+}
+
+.table-border-options button-group:last-of-type {
+    width: 102px;
+}
+.table-border-options toggle-button {
+    padding: 6px 0;
+}
+.table-border-selection-presets {
+    width: calc((100% - 4px) * 3 / 9);
+}
+.table-border-selection {
+    width: calc((100% - 4px) * 6 / 9) !important;
+}
+
+tabs {
+    position: relative;
+    display: block;
+    border-radius: 8px;
+    overflow: hidden;
+}
+tabs.no-top-curve {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+tabs.no-bottom-curve {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+tab-content {
+    position: absolute;
+    display: block;
+    width: 100%;
+}
+tab-content[hidden] {
+    opacity: 0;
+}
+
+toggleable-section {
+    display: block;
+    overflow: hidden;
+}
+
+:is(button, input, number-input div, toggle-button, angle-input, list-select, color-input) {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 28px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+    border: none;
+    border-radius: 8px;
+    outline: none;
+    background: var(--button-background);
+    color: inherit;
+    text-align: center;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background .1s;
+}
+:is(button, input[type=range], button-box, toggle-button, angle-input, list-select, text-input, number-input, color-input, .button-highlights)::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: calc(100% - 2px);
+    border-top: 1px solid var(--button-highlight);
+    border-bottom: 1px solid var(--button-shadow);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    transition: background .1s;
+}
+:is(button, toggle-button, angle-input, list-select, color-input):not(._):focus-visible::before {
+    background: var(--button-focus);
+}
+:is(button, toggle-button, angle-input, list-select)[disabled]:not(._) {
+    background: var(--button-disabled-background);
+}
+text-input {
+    position: relative;
+    display: block;
+    border-radius: 8px;
+}
+:is(input, number-input div):not(._) {
+    background: var(--button-disabled-background);
+    border: none;
+    border-radius: inherit;
+    outline: none;
+    text-align: left;
+    white-space: nowrap;
+    overflow: scroll;
+    cursor: text;
+}
+input[type=range]:not(._) {
+    cursor: pointer;
+}
+
+button-group, button-grid > * {
+    display: flex;
+}
+button-group > :not(:first-child), button-grid > * > :not(:first-child), button-grid > :not(:first-child) > * {
+    border-top-left-radius: 0;
+}
+button-group > :not(:last-child), button-grid > * > :not(:last-child), button-grid > :not(:first-child) > * {
+    border-top-right-radius: 0;
+}
+button-group > :not(:first-child), button-grid > * > :not(:first-child), button-grid > :not(:last-child) > * {
+    border-bottom-left-radius: 0;
+}
+button-group > :not(:last-child), button-grid > * > :not(:last-child), button-grid > :not(:last-child) > * {
+    border-bottom-right-radius: 0;
+}
+
+button-box {
+    --size: 0;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: space-around;
+    justify-content: space-around;
+    min-width: var(--size);
+    max-width: var(--size);
+    height: var(--size);
+    box-sizing: border-box;
+    border: none;
+    border-radius: 8px;
+    outline: none;
+    background: var(--button-disabled-background);
+    color: inherit;
+    text-align: center;
+    font-size: 14px;
+}
+button-box > :not(#_) {
+    display: block;
+    width: 28px;
+    padding: 6px 0;
+    background: var(--button-disabled-background);
+}
+button-box > :not(#_)[toggled] {
+    background: var(--button-background);
+}
+button-box > :not(._)::before {
+    content: initial;
+}
+
+:is(list-popup, color-popup) {
+    position: fixed;
+    display: block;
+    box-sizing: border-box;
+    border: 1px solid var(--popup-border);
+    border-radius: 8px;
+    outline: 1px solid var(--popup-border-outer);
+    background: var(--popup-background);
+    backdrop-filter: blur(15px);
+    overflow: hidden;
+    font-size: 14px;
+    cursor: default;
+    z-index: 2;
+}
+:is(list-popup, color-popup)[hidden] {
+    /*height: 0;*/
+    /*opacity: 0;*/
+}
+:is(list-popup, color-popup) > name {
+    box-sizing: border-box;
+    display: block;
+    height: 30px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--popup-border);
+    border-radius: 7px 7px 0 0;
+    text-align: center;
+}
+:is(list-popup, color-popup) > content {
+    display: block;
+    box-sizing: border-box;
+    border-radius: 0 0 7px 7px;
+    overflow-y: scroll;
+}
+
+toggle-button:not(._) {
+    background: var(--button-toggle-background);
+}
+toggle-button[toggled] {
+    background: var(--button-toggled-background);
+}
+
+check-box {
+    position: relative;
+    height: 20px;
+    padding-left: 24px;
+    outline: none;
+    cursor: pointer;
+}
+check-box::before {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    margin: 0 6px -3px 0;
+    background: var(--button-toggle-background);
+    border-radius: 6px;
+    transition: background .2s;
+}
+check-box::after {
+    content: "";
+    display: inline-block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 18px;
+    background: #0000 url("data:image/svg+xml,<svg viewBox='0 0 20 18' xmlns='http://www.w3.org/2000/svg'></svg>");
+    border-top: 1px solid var(--button-highlight);
+    border-bottom: 1px solid var(--button-shadow);
+    border-radius: 6px;
+    transition: background .1s;
+}
+check-box:focus-visible::after {
+    background: var(--button-focus) url("data:image/svg+xml,<svg viewBox='0 0 20 18' xmlns='http://www.w3.org/2000/svg'></svg>");
+}
+check-box[toggled]::before {
+    background: #448CD5;
+}
+check-box[toggled]::after {
+    background: #0000 url("data:image/svg+xml,<svg viewBox='0 0 20 18' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4.5 9.5L8.5 14L15 4'/></svg>") no-repeat;
+}
+check-box[toggled]:focus-visible::after {
+    background: var(--button-focus) url("data:image/svg+xml,<svg viewBox='0 0 20 18' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4.5 9.5L8.5 14L15 4'/></svg>") no-repeat;
+}
+
+number-input {
+    position: relative;
+    width: 100%;
+    height: 28px;
+    display: flex;
+    border-radius: 8px;
+    transition: outline .1s;
+}
+number-input div {
+    width: 0;
+    height: 100%;
+    flex-grow: 1;
+    border-radius: 8px 0 0 8px;
+}
+number-input .multiple {
+    font-style: italic;
+    color: var(--bA);
+}
+number-input :is(div:not([contenteditable]), button[disabled]) {
+    cursor: default;
+}
+number-input-buttons {
+    display: flex;
+    flex-direction: column;
+}
+number-input button:not(._) {
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    font-size: 10px;
+}
+number-input button::before {
+    content: initial;
+}
+number-input button:first-of-type {
+    border-top-right-radius: 8px;
+}
+number-input button:last-of-type {
+    border-bottom-right-radius: 8px;
+}
+
+angle-input:not(._) {
+    width: 28px;
+    padding: 6px;
+    border-radius: 14px;
+}
+
+list-popup > name add {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 29px;
+    height: 29px;
+    background: url("data:image/svg+xml,<svg viewBox='0 0 29 29' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='%23C0C0C0' stroke-linecap='round' d='M14.5 9.5V19.5M9.5 14.5H19.5'/></svg>");
+    cursor: pointer;
+}
+list-popup group {
+    display: block;
+}
+list-popup group:not(:first-of-type) {
+    border-top: 1px solid var(--popup-border);
+}
+list-popup group name, list-popup group entry {
+    position: relative;
+    display: block;
+    min-height: 17px;
+    padding: 3px 6px;
+}
+list-popup group name {
+    position: sticky;
+    top: 0;
+    padding: 6px;
+    text-align: center;
+}
+list-popup group name add {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 29px;
+    height: 29px;
+    background: url("data:image/svg+xml,<svg viewBox='0 0 29 29' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='%23C0C0C0' stroke-linecap='round' d='M14.5 9.5V19.5M9.5 14.5H19.5'/></svg>");
+    cursor: pointer;
+}
+list-popup group options {
+    display: block;
+    padding: 3px 0;
+}
+list-popup group name + options {
+    padding-top: 0;
+}
+list-popup group entry {
+    text-align: left;
+    cursor: pointer;
+}
+list-popup group entry :is(a, input) {
+    display: inline-block;
+}
+list-popup group entry :is(a, input)::before {
+    content: "";
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+    margin-bottom: -3px;
+    margin-right: 4px;
+    background: #0000;
+}
+list-popup group entry :is(a, input).selected::before {
+    background:url("data:image/svg+xml,<svg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M2 8L6 12.5L12.5 3.5'/></svg>");
+}
+list-popup group entry actions {
+    position: absolute;
+    display: block;
+    right: 3px;
+    top: 0;
+    height: 23px;
+}
+list-popup group entry actions > * {
+    display: inline-block;
+    width: 23px;
+    height: 23px;
+}
+list-popup group entry actions rename {
+    background: url("data:image/svg+xml,<svg viewBox='0 0 23 23' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='%23C0C0C0' stroke-linejoin='round' d='M6.5 16.5L7.5 13.5L14 7C15.5 5.5 17.5 7.5 16 9L9.5 15.5ZM13 8L15 10'/></svg>");
+}
+list-popup group entry actions remove {
+    background: url("data:image/svg+xml,<svg viewBox='0 0 23 23' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='%23C0C0C0' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' d='M6.5 9H16.5M9.5 8.5C9.5 7 10 6.5 11.5 6.5C13 6.5 13.5 7 13.5 8.5M8 9C8 16.5 8.5 16.5 10 16.5H13C14.5 16.5 15 16.5 15 9M10.5 11V14.5M12.5 11V14.5'/></svg>");
+}
+
+list-select::after {
+    content: "";
+    position: absolute;
+    right: 5px;
+    top: 6px;
+    width: 16px;
+    height: 16px;
+    background: url("data:image/svg+xml,<svg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'><path fill='none' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 5.5L8.5 10.5L13.5 5.5'/></svg>");
+}
+
+color-popup content {
+    padding: 4px;
+}
+color-popup :is(list-select, :is(.solid, .gradient) > button-group) {
+    margin-bottom: 4px;
+}
+color-popup .grid button-grid {
+    display: block;
+}
+color-popup .sliders tabs {
+    margin-bottom: 2px;
+}
+color-popup .sliders span {
+    display: flex;
+    width: 100%;
+    height: 28px;
+    gap: 4px;
+    transition: height .25s, margin .25s, opacity .25s, transform .25s;
+}
+color-popup .sliders :is(span + *) {
+    margin-top: 4px;
+}
+color-popup .sliders span[hidden] {
+    height: 0;
+    margin-top: 0;
+    opacity: 0;
+    transform: scaleY(0) translateX(4px);
+    pointer-events: none;
+}
+color-popup .sliders span > input[type=range] {
+    width: calc(200% / 3);
+    height: 16px;
+    padding: 0;
+    margin: 6px 0;
+    background: var(--button-background);
+    border-radius: 8px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+color-popup .sliders span > [type=range]::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    background: #0000;
+    border: 2px solid #FFF;
+    border-radius: 8px;
+    appearance: none;
+    -webkit-appearance: none;
+}
+color-popup .sliders span > number-input {
+    width: calc(100% / 3 - 4px);
+}
+color-popup .sliders > text-input {
+    display: block;
+}
+color-popup .angle {
+    display: flex;
+    gap: 4px;
+}
+color-popup .angle angle-input {
+    min-width: 28px;
+    width: 28px;
+}
+color-popup .angle number-input {
+    margin-bottom: 4px;
+}
+color-popup .simple-gradient {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+}
+color-popup .advanced-gradient span {
+    display: flex;
+    gap: 4px;
+    overflow:hidden;
+}
+color-popup .advanced-gradient-slider {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: calc(100% - 32px);
+    height: 16px;
+    padding: 0;
+    margin: 6px 0;
+    background: linear-gradient(to right, #E55454 0%, #2ABC2A 50%, #448CD5 100%), linear-gradient(45deg, #606060 25%, #0000 25%) 0 0 / 14px 14px, linear-gradient(-45deg, #606060 25%, #0000 25%) 0 7px / 14px 14px, linear-gradient(45deg, #0000 75%, #606060 75%) 7px -7px / 14px 14px, linear-gradient(-45deg, #404040 75%, #606060 75%) -7px 0 / 14px 14px;
+    border-radius: 8px;
+}
+color-popup .advanced-gradient-slider input {
+    position: absolute;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    background: #0000;
+    pointer-events: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+color-popup .advanced-gradient-slider input::before {
+    content: initial;
+}
+color-popup .advanced-gradient-slider input::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #FFFF;
+    border-radius: 8px;
+    pointer-events: auto;
+    appearance: none;
+    -webkit-appearance: none;
+}
+color-popup .advanced-gradient div span :is(number-input, color-input) {
+    width: calc(50% - 18px);
+}
+color-popup .advanced-gradient div span > * {
+    margin-top: 4px;
+}
+color-popup .advanced-gradient button:not(number-input button) {
+    width: 28px;
+    padding: 6px 0;
+}
+color-popup :is(.sliders, .gradient) > span {
+    display: flex;
+    margin-top: 4px;
+    gap: 4px;
+}
+color-popup :is(.sliders, .gradient) > span > button {
+    display: inline-block;
+    transition: background;
+}
+
+color-input {
+    transition: background;
+    vertical-align: middle;
+}
+color-input::after {
+    content: "";
+    position: absolute;
+    right: 5px;
+    top: 6px;
+    width: 16px;
+    height: 16px;
+    background: url("data:image/svg+xml,<svg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'><foreignObject x='0' y='0' width='16' height='16'><div style='position:fixed;width:16px;height:16px;background-image:radial-gradient(closest-side,%23FFF,%23FFF0)' xmlns='http://www.w3.org/1999/xhtml'/><div style='width:16px;height:16px;border-radius:8px;background-image:conic-gradient(%23D65E45,%23DB5B4A,%23E0584F,%23E55454,%23E4535C,%23E35263,%23E2516B,%23E15072,%23E04F7A,%23DF4E81,%23DE4D89,%23DD4C91,%23DC4B98,%23DB4AA0,%23DA49A8,%23D948B0,%23D847B8,%23D746BF,%23D645C7,%23D544CF,%23D244D5,%23CC47D8,%23C64ADA,%23BF4CDD,%23B94FDF,%23B352E2,%23AD54E5,%23A757E7,%23A15AEA,%239B5DEC,%23955FEF,%238F62F1,%238965F4,%238467F6,%237E6AF9,%23786DFC,%237270FE,%236D73FC,%236876F7,%236279F2,%235D7CED,%23587FE8,%235283E3,%234D86DE,%234889D9,%23428DD4,%233D91CF,%233894CA,%233398C5,%232E9CC0,%2328A0BB,%2323A4B6,%231EA8B1,%2319ACAC,%231AADA4,%231BAE9C,%231CAF94,%231DB08C,%231EB184,%231FB27C,%2320B374,%2321B36C,%2322B464,%2323B55C,%2324B655,%2325B74D,%2326B845,%2327B93E,%2328BA36,%2329BB2F,%232CBB29,%2331B826,%2337B624,%233DB321,%2343B11E,%2349AE1C,%234FAC19,%2356A917,%235CA714,%2362A412,%2369A20F,%236F9F0D,%23759D0A,%237C9A08,%23829805,%23899503,%23909301,%23958F03,%239A8B08,%239F870C,%23A48311,%23A97F16,%23AE7B1B,%23B37720,%23B87325,%23BD702B,%23C26C30,%23C76835,%23CC653A,%23D1613F,%23D65E45)' xmlns='http://www.w3.org/1999/xhtml'/></foreignObject></svg>");
+}
+
+doc {
+    --display-scale: 2px;
+
+    position: fixed;
+    left: var(--nav-width);
+    top: var(--header-height);
+    width: calc(100vw - var(--nav-width) - var(--options-width));
+    height: calc(100vh - var(--header-height));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center; /*Vertically center single page*/
+    overflow: auto;
+    gap: calc(var(--display-scale) * 10);
+    background: var(--d4);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+page {
+    --page-w: 595.28;
+    --page-h: 841.89;
+
+    --page-background: #444;
+
+    position: relative;
+    width: calc(var(--display-scale) * var(--page-w));
+    height: calc(var(--display-scale) * var(--page-h));
+    display: block;
+    background: var(--page-background);
+}
+
+page span {
+    --x: 0;
+    --base-line: 0;
+    --ascent: 0;
+
+    --font-family: "Helvetica-Neue";
+    --font-size: 12;
+    --font-weight:  400;
+    --italic: normal;
+
+    position: absolute;
+    left: calc(var(--display-scale) * var(--x));
+    top: calc(var(--display-scale) * (var(--base-line) - var(--ascent)) - 1px);
+    text-wrap: nowrap;
+    white-space: pre;
+    font-family: var(--font-family);
+    font-size: calc(var(--display-scale) * var(--font-size));
+    font-weight:  var(--font-weight);
+    font-style:  var(--italic);
+    cursor: text;
+}
+page span::before {
+    content: "";
+    height: calc(var(--display-scale) * (var(--ascent)) + 1px);
+    display: inline-block;
+}
+
+page box {
+    --x: 0;
+    --y: 0;
+    --w: 0;
+    --h: 0;
+    --corner-radius: 0;
+    --background: #000;
+
+    position: absolute;
+    left: calc(var(--display-scale) * var(--x));
+    top: calc(var(--display-scale) * var(--y));
+    width: calc(var(--display-scale) * var(--w));
+    height: calc(var(--display-scale) * var(--h));
+    border-radius: calc(var(--display-scale) * var(--corner-radius));
+    background: var(--background);
+}
+
+page selection * {
+    position: absolute;
+    pointer-events: none;
+}
+page selection cursor {
+    --x: 0;
+    --y: 0;
+    --h: 0;
+
+    left: calc(var(--display-scale) * (var(--x) - 1));
+    top: calc(var(--display-scale) * (var(--y) + .5));
+    width: calc(var(--display-scale) * 2);
+    height: calc(var(--display-scale) * var(--h));
+    border-radius: /*calc(var(--display-scale) * 1)*/0;
+    background: #448CD5;
+}
+page selection box, [test] {
+    --x: 0;
+    --y: 0;
+    --w: 0;
+    --h: 0;
+
+    left: calc(var(--display-scale) * var(--x));
+    top: calc(var(--display-scale) * var(--y));
+    width: calc(var(--display-scale) * var(--w));
+    height: calc(var(--display-scale) * var(--h));
+    background: #448CD580;
+}

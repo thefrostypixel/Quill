@@ -1,0 +1,44 @@
+translation.key Simple Value
+translation.another Value <with> Variable
+translation.yet-another Variables<hello>Without<world>Spaces
+yet-another-translation Line\nBreak
+spaces.trimmed Only     1       Space
+spaces.not-trimmed \ \ \ Multiple\ \ \ Spaces\ \ \
+backslash.test-1 Single \ Backslash should be ignored
+backslash.test-2 Double \\ Backslash should become single
+backslash.test-3 No Line\\nBreak
+backslash.test-4 No \<hi> Variable
+backslash.test-5 Ending Backslash \
+random.test Hello World!
+comment.line Line Comments // Like this one
+comment.block.inline Inline /* Like this one */ Comments are a thing // The double spaces before and after the inline-comment should be trimmed
+comment.block.multi-line Multiline Comments /* Like
+this
+one*/ should be ignored, so that this is still one translation.
+no-value.means-ignore
+this-should.be-blank \
+
+test.hi Hello <name>
+test.name <first-name> <last-name>
+
+only.other.translation {t}
+only.variable <t>
+
+hold You're holding {obj.a-<obj>}. // Translations can include other translations and insert variables into their names
+talk You're talking to {test.name[first-name:"<first-name>",last-name:"<last-name>"]}. // These translations can also be given parameters, just like regular translations
+stacked Oh, {test.hi[name:"{test.name[first-name:"<first-name>",last-name:"<last-name>"]}"]}. // Translations can even be given to other translations
+
+obj.apple apple
+obj.apple-plural apples
+obj.a-apple an apple
+obj.the-apple the apple
+obj.the-apple-plural the apples
+
+obj.cactus apple
+obj.cactus-plural cacti
+obj.a-cactus a cactus
+obj.the-cactus the cactus
+obj.the-cactus-plural the cacti
+
+infinite.loop Infinite {infinite.loop.1}.
+infinite.loop.1 Loop {infinite.loop}

@@ -1,0 +1,3 @@
+Font list (no CORS, would have to self-host and regularly update): https://fonts.google.com/metadata/fonts
+GitHub font info example: https://raw.githubusercontent.com/google/fonts/refs/heads/main/ofl/42dotsans/METADATA.pb
+GitHub font file example: https://raw.githubusercontent.com/google/fonts/refs/heads/main/ofl/42dotsans/42dotSans%5Bwght%5D.ttf

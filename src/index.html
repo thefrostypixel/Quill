@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Quill UI 3</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+        <link rel="icon" href="Quill.png">
+        <link rel="manifest" href="/src/manifest.json">
+        <!--<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">--> <!-- Should give the page access to the area around the dynamic island, but broken as of iOS 26.3. -->
+        <script>
+            window.addEventListener("load", () => navigator.serviceWorker?.register("/UpdateHandler.js"));
+        </script>
+        <script src="/src/antica/Anim.js"></script>
+        <script src="/src/antica/Color.js"></script>
+        <script src="/src/antica/Controls.js"></script>
+        <script src="/src/antica/DOMUtils.js"></script>
+        <!--<script src="/src/antica/Scrollbars.js"></script>-->
+        <script src="/src/antica/Time.js"></script>
+        <script src="/src/antica/Translations.js"></script>
+    </head>
+    <body style="background: url('/src/Wallpaper.jpg'), #333;">
+        <style id="defined-style"></style>
+        <div id="popups"></div>
+        <script src="/src/UI3.js"></script>
+        <script>
+            let floatButton = simpleButton("Float");
+            let fixButton = simpleButton("Fix");
+
+            let sub2 = new Menu()
+            .add(new Title("Buttons"))
+            .add(simpleButton("First button"))
+            .add(simpleButton("Second button"))
+            .add(simpleButton("Third button"))
+
+            let sub1 = new Menu()
+            .add(new Title("A menu"))
+            .add(subMenu("Another menu", sub2))
+            .add(simpleButton("No more menus"))
+            .add(simpleButton("Nothing else here"))
+
+            let sub3 = new Menu();
+            sub3
+            .add(new Title("Buttons"))
+            .add(simpleButton("First button").onPrimary(() => sub3.visible = false, true))
+            .add(simpleButton("Second button").onPrimary(() => sub3.visible = false, true))
+            .add(simpleButton("Third button").onPrimary(() => sub3.visible = false, true))
+
+            let complex = new Tile(undefined, "Complex", "Primary to toggle\nSecondary for menu")
+            .add(new Toggle(false), true)
+            .add(new SubMenu(sub3), false, true)
+
+            let main = new Menu()
+            /*.add({
+                element: $new("div").style({
+                    width: "2000px",
+                    height: "4000px",
+                    background: "#FFF",
+                    margin: "-100px",
+                }),
+            })*/
+            .add(new Title("States"))
+            .add(floatButton)
+            .add(fixButton)
+            .add(new Title("Menus"))
+            .add(subMenu("A menu", sub1, "Test"))
+            .add(new VerticalSpacer())
+            .add(tabBar("Beta", "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa", "Lambda"))
+            .add(new VerticalSpacer())
+            .add(tabs("Center", {
+                Left: new Pane().add(simpleButton("Middle")),
+                Center: new Pane().add(simpleButton("Top"), simpleButton("Bottom")),
+                Right: new Pane().add(simpleButton("Top"), simpleButton("Middle"), simpleButton("Bottom")),
+            }))
+            .add(new VerticalSpacer())
+            .add(toggle(undefined, "Toggle", undefined, false))
+            .add(toggle(undefined, "Toggle switch", "Toggles stuff", false))
+            .add(toggle(undefined, "Maybe", "A very long description to show text wrapping into multiple lines when it is too long to fit into just a single line", false))
+            .add(new VerticalSpacer())
+            .add(complex)
+            .add(numberInput("Font size", 12))
+            .add(new VerticalSpacer())
+            .add(new Title("text.weight"))
+            .add(multiSelect("text.weight.400", "text.weight.100", "text.weight.200", "text.weight.300", "text.weight.400", "text.weight.500", "text.weight.600", "text.weight.700", "text.weight.800", "text.weight.900"))
+
+            let float = () => {
+                main.state = "floating";
+                main.floatingCenter = 1400;
+                main.floatingTop = 400;
+            };
+            floatButton.onPrimary(float);
+
+            let fix = () => {
+                main.state = "fixed";
+                main.fixedLeftAnchor = "right";
+                main.fixedLeft = -300;
+                main.fixedRightAnchor = "full-right";
+                main.fixedRight = 0;
+                main.fixedTopAnchor = "full-top";
+                main.fixedTop = 0;
+                main.fixedBottomAnchor = "full-bottom";
+                main.fixedBottom = 0;
+            };
+            fixButton.onPrimary(fix);
+
+            float();
+        </script>
+    </body>
+</html>

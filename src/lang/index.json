@@ -1,0 +1,16 @@
+{
+    "primary": {
+        "en": "US",
+        "de": "DE"
+    },
+    "langs": {
+        "en-US": {
+            "name": "English (United States)",
+            "file": "en-US"
+        },
+        "de-DE": {
+            "name": "Deutsch (Deutschland)",
+            "file": "de-DE"
+        }
+    }
+}

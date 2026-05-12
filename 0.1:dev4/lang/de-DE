@@ -1,0 +1,156 @@
+table-of-contents Inhaltsverzeichnis
+view-options Ansichtseinstellungen
+add-content Inhalt hinzufügen
+inspector Inspektor
+inspector.text Text
+inspector.table Tabelle
+inspector.layout Layout
+inspector.document Dokument
+inspector.text.paragraph-style Absatzstil
+inspector.text.section-overwrite Abschnitt überschreiben
+inspector.section-overwrite.none Keine
+inspector.text.text Text
+text.family Schriftart
+text.family.default Standard
+text.family.document Im Dokument
+text.size Schriftgröße
+text.weight Schriftstärke
+text.weight.100 Ultraleicht
+text.weight.200 Dünn
+text.weight.300 Leicht
+text.weight.400 Normal
+text.weight.500 Mittel
+text.weight.600 Halbfett
+text.weight.700 Fett
+text.weight.800 Schwer
+text.weight.900 Schwarz
+text.color Textfarbe
+text.bold Fett
+text.italic Kursiv
+text.underline Unterstrichen
+text.strikethrough Durchgestrichen
+text.outline Umrandung
+text.shadow Schatten
+text.more Mehr
+text.baseline Grundlinie
+text.baseline.base Standard
+text.baseline.sup Hochgestellt
+text.baseline.sub Tiefgestellt
+text.capitalization Groß-/Kleinschreibung
+text.capitalization.default Standard
+text.capitalization.all-caps Alles Großbuchstaben
+text.capitalization.no-caps Alles Kleinbuchstaben
+text.capitalization.start-caps Wortanfänge groß
+text.capitalization.small-caps Kapitälchen
+text.capitalization.small-start-caps Kapitälchen & Wortanfänge groß
+text.background Text-Hintergrund
+text.line-spacing Zeilenabstand
+text.paragraph-spacing.above Abstand vor Absatz
+text.paragraph-spacing.below Abstand nach Absatz
+line.style Linienstil
+line.type Linienart
+line.width Linienbreite
+line.color Linienfarbe
+line.single Einfach
+line.double Doppelt
+line.solid Durchgezogen
+line.dotted Gepunktet
+line.wave Wellig
+line.wave.size Größe
+align.horizontal.left Horizontal links ausrichten
+align.horizontal.center Horizontal zentriert ausrichten
+align.horizontal.right Horizontal rechts ausrichten
+align.horizontal.stretch Horizontal strecken
+align.vertical.top Vertikal oben ausrichten
+align.vertical.middle Vertikal mittig ausrichten
+align.vertical.bottom Vertikal unten ausrichten
+table Tabelle
+table.row-count Zeilen
+table.colum-count Spalten
+table.headers Kopfzeilen
+table.header-count.top Kopfzeilen oben
+table.header-count.bottom Fußzeilen unten
+table.header-count.left Kopfspalten links
+table.cell Zelle
+table.column-width Spaltenbreite
+table.row-height Zeilenhöhe
+table.data-type Datentyp
+table.data-type.text Text
+table.data-type.number Zahl
+table.data-type.boolean Wahrheitswert
+table.data-type.date Datum & Uhrzeit
+table.cell-background Zellenhintergrund
+table.borders Rahmen
+table.borders.all Alle Rahmen
+table.borders.outer Äußere Rahmen
+table.borders.inner Innere Rahmen
+table.borders.left Linker Rahmen
+table.borders.center Zentrale Rahmen
+table.borders.right Rechter Rahmen
+table.borders.top Oberer Rahmen
+table.borders.middle Mittlere Rahmen
+table.borders.bottom Unterer Rahmen
+layout.position.fixed Feste Position
+layout.position.left Links
+layout.position.top Oben
+layout.push-text Text schieben
+layout.space Abstand
+layout.tight-flow Text fließt um Form
+object.size Objektgröße
+object.size.width Breite
+object.size.height Höhe
+object.transformations Transformationen
+object.transformations.rotation Drehung
+object.transformations.mirror Spiegeln
+page.size Seitengröße
+page.size.template Vorlage
+page.size.template.paper Papier
+page.size.template.screen Bildschirm
+page.size.template.a1 A1
+page.size.template.a2 A2
+page.size.template.a3 A3
+page.size.template.a4 A4
+page.size.template.a5 A5
+page.size.template.a6 A6
+page.size.template.letter Brief
+page.size.template.hd HD
+page.size.template.4k 4K
+page.size.width Breite
+page.size.height Höhe
+page.margin Seitenrand
+page.margin.top Oben
+page.margin.bottom Unten
+page.margin.left Links
+page.margin.right Rechts
+page.header Kopfzeile
+page.header.height Höhe
+page.header.margin Abstand
+page.footer Fußzeile
+page.footer.height Höhe
+page.footer.margin Abstand
+page.background Seitenhintergrund
+page.main-content Hauptinhalt
+page.apply-to-all-sections Auf alle Abschnitte anwenden
+color.solid Volltonfarbe
+color.linear Linearer Verlauf
+color.radial Radialer Verlauf
+color.solid.grid Gitter
+color.solid.hsl HSL
+color.solid.rgb RGB
+color.solid.hue Farbton
+color.solid.saturation Sättigung
+color.solid.lightness Helligkeit
+color.solid.red Rot
+color.solid.green Grün
+color.solid.blue Blau
+color.solid.alpha Alpha
+color.solid.code Code
+color.gradient.simple Einfach
+color.gradient.advanced Erweitert
+color.linear.direction Richtung
+color.cancel Abbrechen
+color.done Fertig
+list-select.none Keine
+list-select.multiple Mehrere
+
+colon <t>:

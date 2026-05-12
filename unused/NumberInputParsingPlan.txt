@@ -1,0 +1,33 @@
+Quantity: Anything that can be measured like length, time or speed.
+Dimension: Anything that can be measured using a single base unit like length or time, but not something like speed, which is length / time.
+
+1. Replace ¹²³ with ^(123).
+2. Parse as list of tokens:
+    2.1. Parse a number 0123456789.,_(space) as {value: …, dimExps: {}}. Ignore spaces and underscores and treat dots and commas as decimal separators. TODO Stuff like hex (0x…). It'll probably need some sub-steps for 2.1.
+    2.2. Parse a char that's a bracket ()[]{} as {bracket: "…"}.
+    2.3. Parse a char that's an addition operator + as {operator: "+"}.
+    2.4. Parse a char that's a subtraction operator -–— as {operator: "-"}.
+    2.5. Parse a char that's a multiplication operator *•· as {operator: "*"}.
+    2.6. Parse a char that's a division operator /:÷ as {operator: "/"}.
+    2.7. Parse a char that's an exponentiation operator ^ as {operator: "^"}.
+    2.8. Ignore spaces and underscores (but have them split units).
+    2.9. Parse anything else that's one or more chars that aren't listed above as {unit: "…"}.
+3. Matches brackets.
+4. Run the following for the whole thing:
+    4.1. If there are brackets, evaluate them using step 6.
+    4.2. Exponentiation:
+        4.2.1. If either side is a unit, parse it as using step 4.4.2.
+        4.2.2. If the exponent has a unit, skip the exponentiation and just go with the base value.
+        4.2.3. Otherwise, exponentiate the value to the exponent and multiply its dimExps with the exponent.
+    4.3. As long as there is an addition or subtraction operator before a number and nothing or another operator before it, apply the operator to the number.
+    4.4. For any unit:
+        4.4.1. If it's following a number, apply the unit to the number and increase its dimExp counter for the quantity the unit belongs to by 1.
+        4.4.2. Otherwise, parse it as {value: (unit applied to 1 or 1 for unknown units), dimExps: {(quantity the unit belongs to): 1}}.
+    4.5. If two numbers are consecutive without an operator in between, multiply them using step 5.6.
+    4.6. Multiplication or division.
+        4.6.1. When multiplying, add their dimExps.
+        4.6.2. When dividing, subtract the dimExps of the denominator from those of the numerator.
+    4.7. Addition or subtraction. TODO: This wording is horrible also idk how 1m + 1s should even work.
+        4.7.1. For every dimExp either has where the dimExp for either of them is greater than 0, apply the default unit for that dimension to the one that has the smaller counter as many times as their counters are different.
+        4.7.2. For very dimExp either has where the dimExp for both of them is less than or 0, unapply the default unit for that dimension to the one that has the greater counter as many times as their counters are different.
+5. For every dimExp the result is greater than the target quantities dimExp, apply the default unit for that dimension to the result. Unapply for every dimExp the result is less than the target quantities dimExp.

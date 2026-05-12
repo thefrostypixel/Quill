@@ -1,0 +1,12 @@
+The style menu has the options "Paragraph", "Section" and "Overwrite".
+"Paragraph" shows the name of the selected paragraph style as a preview and opens a menu for selecting a paragraph style.
+"Section" shows the names of the selected section styles as a preview and opens a menu for toggling section styles.
+"Overwrite" shows the names (or values, depending on the option) of overwritten options as a preview and opens a menu for overwriting styles.
+
+The paragraph and section style lists have options for selecting/toggling, configuring and reordering (dragging) styles.
+The configuration menu has the options "Rename", "Edit", "Apply section style" (only for paragraph styles), "Apply current overwrite", "Duplicate" and "Delete".
+"Edit" brings up a menu for defining/overwriting styles.
+"Apply selection styles" asks for a section style.
+"Delete" asks for another paragraph style to replace the deleted one if it is used.
+
+The menu for defining/overwriting styles has a "Clear overwrites" option when editing the overwrites. It will have all regular text style options such as "Font", "Size", "Weight", "Color", "Italic", ... and when editing section styles or overwrite, every style option will have a "Same as paragraph" option.
