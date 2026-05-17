@@ -305,7 +305,6 @@ class Widget {
     #anims = Object.create(null);
     createAnims(anims) {
         Object.keys(anims).forEach(anim => (this.#anims[anim] = new (anims[anim].color ? ColorAnim : Anim)(anims[anim].axes || anims[anim].color, anims[anim].accel, time)).callback = anims[anim].callback);
-        console.log(...Object.values(this.#anims));
         this.instantAnim(true);
     }
     anim(anim, axis = anim, target) {
@@ -374,10 +373,7 @@ class Widget {
         }
         Object.keys(this.#anims).forEach(anim => {
             if (this.#instantAnims[anim]) {
-                Object.keys(this.#anims[anim].axes).forEach(axis => {
-                    console.log(this.#anims[anim], axis);
-                    // this.#anims[anim].axes[axis] = this.#anims[anim].axes[axis].target 0.1!dev4
-                });
+                Object.keys(this.#anims[anim].axes).forEach(axis => this.#anims[anim].axes[axis] = this.#anims[anim].axes[axis].target);
             }
         });
         requestAnimationFrame(() => this.#instantAnims = Object.create(null));
@@ -518,6 +514,7 @@ class Menu extends Widget {
             let left = mixNum(floatingLeft, fixedLeft);
             let width = Math.round(mixNum(floatingWidth + style.padding * 2, fixedWidth));
 
+            console.log("Position", this.anim("floating", "center"));
             let cornerRadius = Math.round(mixNum(style.floatingRadius, style.fixedRadius));
             this.element.style({
                 left: `${left}px`,
@@ -583,6 +580,8 @@ class Menu extends Widget {
 
             this.instantAnim({floating: this.anim("state", "fixed") == 1 || undefined});
             this.instantAnim({fixed: this.anim("state", "fixed") == 0 || undefined});
+        } else {
+            console.log("Invisible");
         }
     };
 
@@ -627,7 +626,7 @@ class Menu extends Widget {
 
 
 
-    #visible = true;
+    #visible = false;
     get visible() {
         return this.#visible;
     }
@@ -680,6 +679,7 @@ class Menu extends Widget {
         return this.animTarget("floating", "center");
     }
     set floatingCenter(floatingCenter) {
+        console.log(floatingCenter, this.#visible, this.anim("visible"));
         this.anim("floating", "center", floatingCenter);
     }
     offsetFloatingCenter(floatingCenter) {
@@ -1291,7 +1291,6 @@ class Toggle extends Widget {
     }
     toggle = () => this.toggled = !this.toggled;
     #update = () => {
-        console.log(this.anim("toggled", "toggled"));
         this.element.select("path").set({fill: this.mixColor("toggled", "toggled", style.buttonColorUnchecked, style.buttonColorChecked).hex()});
         this.element.select("circle").set({cx: 14 + 20 * this.anim("toggled", "toggled")});
     };
