@@ -1,6 +1,7 @@
 table-of-contents Inhaltsverzeichnis
 view-options Ansichtseinstellungen
 add-content Inhalt hinzufügen
+
 inspector Inspektor
 inspector.text Text
 inspector.table Tabelle
@@ -10,6 +11,7 @@ inspector.text.paragraph-style Absatzstil
 inspector.text.section-overwrite Abschnitt überschreiben
 inspector.section-overwrite.none Keine
 inspector.text.text Text
+
 text.family Schriftart
 text.family.default Standard
 text.family.document Im Dokument
@@ -25,8 +27,9 @@ text.weight.700 Fett
 text.weight.800 Schwer
 text.weight.900 Schwarz
 text.color Textfarbe
-text.bold Fett
 text.italic Kursiv
+text.italic.upright Aufrecht
+text.italic.italic Kursiv
 text.underline Unterstrichen
 text.strikethrough Durchgestrichen
 text.outline Umrandung
@@ -41,22 +44,55 @@ text.capitalization.default Standard
 text.capitalization.all-caps Alles Großbuchstaben
 text.capitalization.no-caps Alles Kleinbuchstaben
 text.capitalization.start-caps Wortanfänge groß
-text.capitalization.small-caps Kapitälchen
-text.capitalization.small-start-caps Kapitälchen & Wortanfänge groß
+text.small-caps Kapitälchen
+text.small-caps.lowercase Kleinschreibung
+text.small-caps.small-caps Kapitälchen
 text.background Text-Hintergrund
 text.line-spacing Zeilenabstand
 text.paragraph-spacing.above Abstand vor Absatz
 text.paragraph-spacing.below Abstand nach Absatz
+text.list Liste
+text.list.indentation Einrückung
+text.list.label Beschriftung
+text.list.bullet Punkt
+text.list.bullet.custom Eigenes
+text.list.counting Zählend
+text.list.counting.repeat-hierarchy Wiederhole hierarchie
+text.list.counting.reset Zähler zurücksetzen
+text.list.counting.set Zähler setzen
+text.list.decoration Dekoration
+text.list.decoration.custom Eigenes
+text.list.decoration.prefix Präfix
+text.list.decoration.separator Trenner
+text.list.decoration.suffix Suffix
+text.list.text-indentation Text Einrückung
+text.indentation Einrückung
+text.indentation.step-size Schrittgröße
+
+line Linie
+line.n Linie <n>
 line.style Linienstil
-line.type Linienart
-line.width Linienbreite
-line.color Linienfarbe
-line.single Einfach
-line.double Doppelt
+line.style.n Linie <n> Stil
+line.none Nichts
 line.solid Durchgezogen
+line.dashed Gestrichelt
 line.dotted Gepunktet
 line.wave Wellig
-line.wave.size Größe
+line.stacked Mehrlagig
+line.count Linien
+line.space Linienabstand
+line.width Linienbreite
+line.width.n Liene <n> Breite
+line.dash-length Strichlängen
+line.dash-length.n Linie <n> Strichlängen
+line.dash-gap Strichlücken
+line.dash-gap.n Linie <n> Strichlücken
+line.dot-gap Punktlücken
+line.dot-gap.n Linie <n> Punktlücken
+line.wave-size Wellengröße
+line.color Linienfarbe
+line.color.n Linie <n> Farbe
+
 align.horizontal.left Horizontal links ausrichten
 align.horizontal.center Horizontal zentriert ausrichten
 align.horizontal.right Horizontal rechts ausrichten
@@ -64,6 +100,7 @@ align.horizontal.stretch Horizontal strecken
 align.vertical.top Vertikal oben ausrichten
 align.vertical.middle Vertikal mittig ausrichten
 align.vertical.bottom Vertikal unten ausrichten
+
 table Tabelle
 table.row-count Zeilen
 table.colum-count Spalten
@@ -90,18 +127,24 @@ table.borders.right Rechter Rahmen
 table.borders.top Oberer Rahmen
 table.borders.middle Mittlere Rahmen
 table.borders.bottom Unterer Rahmen
+
 layout.position.fixed Feste Position
 layout.position.left Links
 layout.position.top Oben
 layout.push-text Text schieben
 layout.space Abstand
 layout.tight-flow Text fließt um Form
+
 object.size Objektgröße
 object.size.width Breite
 object.size.height Höhe
 object.transformations Transformationen
-object.transformations.rotation Drehung
-object.transformations.mirror Spiegeln
+object.transformation Transformation
+object.transformation.rotation Drehung
+object.transformation.rotate.angle Winkel
+object.transformation.mirror Spiegeln
+object.transformation.mirror.direction Richtung
+
 page.size Seitengröße
 page.size.template Vorlage
 page.size.template.paper Papier
@@ -115,6 +158,8 @@ page.size.template.a6 A6
 page.size.template.letter Brief
 page.size.template.hd HD
 page.size.template.4k 4K
+page.size.fixed-width Feste Breite
+page.size.fixed-height Feste Höhe
 page.size.width Breite
 page.size.height Höhe
 page.margin Seitenrand
@@ -131,6 +176,7 @@ page.footer.margin Abstand
 page.background Seitenhintergrund
 page.main-content Hauptinhalt
 page.apply-to-all-sections Auf alle Abschnitte anwenden
+
 color.solid Volltonfarbe
 color.linear Linearer Verlauf
 color.radial Radialer Verlauf
@@ -147,9 +193,13 @@ color.solid.alpha Alpha
 color.solid.code Code
 color.gradient.simple Einfach
 color.gradient.advanced Erweitert
+color.gradient.advanced.positions Positionen
+color.gradient.advanced.position Position
+color.gradient.advanced.color Farbe
 color.linear.direction Richtung
 color.cancel Abbrechen
 color.done Fertig
+
 list-select.none Keine
 list-select.multiple Mehrere
 

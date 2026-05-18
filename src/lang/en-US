@@ -27,7 +27,6 @@ text.weight.700 Bold
 text.weight.800 Heavy
 text.weight.900 Black
 text.color Text color
-text.bold Bold
 text.italic Italic
 text.italic.upright Upright
 text.italic.italic Italic
@@ -60,7 +59,7 @@ text.list.bullet.custom Custom
 text.list.counting Counting
 text.list.counting.repeat-hierarchy Repeat hierarchy
 text.list.counting.reset Reset counter
-text.list.counting.set Set counter to
+text.list.counting.set Set counter
 text.list.decoration Decoration
 text.list.decoration.custom Custom
 text.list.decoration.prefix Prefix
