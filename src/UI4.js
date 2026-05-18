@@ -92,6 +92,45 @@ let style = {
     tabBarHighlight: Color.okLab({L: .95}, .25),
 };
 
+let debugProgram;
+let drawDebugBox = (target, box, fill = Color.lRgb(0, 1, 0, .2), border = Color.okLab(fill.L, fill.a, fill.b, .5 + .5 * fill.alpha)) => {
+    debugProgram ??= renderer.program(`#version 300 es
+    precision mediump float;
+
+    in vec2 pos;
+    uniform mat3 posTransform;
+    out vec2 uv;
+
+    void main() {
+        uv = pos;
+        gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+    }
+    `, `#version 300 es
+    precision mediump float;
+
+    in vec2 uv;
+    uniform vec2 tolerance;
+    uniform vec4 fill;
+    uniform vec4 border;
+    out vec4 color;
+
+    void main() {
+        color = uv.x < tolerance.x || 1. - tolerance.x < uv.x || uv.y < tolerance.y || 1. - tolerance.y < uv.y ? border : fill;
+    }
+    `);
+    renderer.draw({
+        target,
+        program: debugProgram,
+        mesh: renderer.boxMesh2D,
+        uniforms: {
+            posTransform: box.vertexMat3(target),
+            tolerance: new Vec2(1 / box.xSize, 1 / box.ySize),
+            fill,
+            border,
+        },
+        blending: Renderer.Blending.overlay,
+    }).exec();
+};
 
 globalThis.Menus = class Menus {
     constructor(style, renderer, cache) {
@@ -183,7 +222,8 @@ globalThis.Menu = class Menu extends Widget {
         }
     };
 
-    #box = new Box2(1200, 1700, 500, 1500);
+    // #box = new Box2(1200, 1700, 500, 1500);
+    #box = new Box2(200, 700, 200, 900);
     get box() {
         return this.#box;
     }
@@ -246,7 +286,6 @@ globalThis.Menu = class Menu extends Widget {
 
                 color = mix(mix(menuBackground, menuOutlineColor, smoothstep(-.5, .5, lineDistance)), vec4(0), smoothstep(lineWidth - .5, lineWidth + .5, lineDistance));
                 color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
-                // color.g = 1. - (1. - color.g) * .8;
             }
             `),
             program => program.delete(),
@@ -288,7 +327,6 @@ globalThis.Menu = class Menu extends Widget {
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
                 float pos = clamp(distance / padding, 0., 1.);
                 color = texture(content, (uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0))) / contentSize) * (distance > 0. ? sqrt(1. - pos * pos) : 1.);
-                // color.g = 1. - (1. - color.g) * .8;
             }
             `),
             program => program.delete(),
@@ -298,8 +336,8 @@ globalThis.Menu = class Menu extends Widget {
             program: this.#backgroundProgram,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).divOrigin(target.size).multOrigin(2).move(-1, -1).transformFrom(),
-                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformFrom(),
+                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
+                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
                 menuSize: box.size,
                 menuCenter: box.center,
                 menuRadius: this.style.menuRadius,
@@ -313,9 +351,11 @@ globalThis.Menu = class Menu extends Widget {
             blending: Renderer.Blending.overlay,
         }).exec();
 
-        let pos = new Vec2(this.style.menuPadding.xMinus + extra, this.box.height - (this.style.menuPadding.yMinus - this.scroll));
+        let left = this.style.menuPadding.xMinus + extra;
+        let right = this.#contentTexture.width - left;
+        let top = this.#contentTexture.height - this.style.menuPadding.yMinus - extra + this.scroll;
         for (let content of this.#content) {
-            content.render(this.#contentTexture, pos);
+            top = content.render(this.#contentTexture, left, right, top);
         }
 
         renderer.draw({
@@ -325,8 +365,8 @@ globalThis.Menu = class Menu extends Widget {
             uniforms: {
                 content: this.#contentTexture,
                 contentSize: this.#contentTexture.size,
-                posTransform: box.copy.divOrigin(target.size).multOrigin(2).move(-1, -1).transformFrom(),
-                uvTransform: box.transformFrom(),
+                posTransform: box.vertexMat3(target),
+                uvTransform: box.transformMat3(),
                 menuMin: box.min,
                 menuSize: box.size,
                 menuCenter: box.center,
@@ -377,10 +417,13 @@ globalThis.Title = class Title extends Widget {
         }
     };
 
-    render = (target, pos) => {
-        pos.add(0, -this.style.titlePadding.top - this.style.titleFont.ascent);
-        this.style.titleFont.draw(target, this.title, pos.copy.add(this.style.titlePadding.left, 0)).exec();
-        pos.add(0, -this.style.titlePadding.bottom - this.style.titleFont.descent);
+    render = (target, left, right, top) => {
+        let start = top;
+        top -= this.style.titlePadding.top + this.style.titleFont.ascent;
+        this.style.titleFont.draw(target, this.title, new Vec2(left + this.style.titlePadding.left, top)).exec();
+        top -= this.style.titlePadding.bottom + this.style.titleFont.descent;
+        drawDebugBox(target, new Box2(left, right, top, start));
+        return top;
     };
 
     #title;
@@ -413,10 +456,13 @@ globalThis.Tile = class Tile extends Widget {
         }
     };
 
-    render = (target, pos) => {
-        pos.add(0, -this.style.tilePadding.top - this.style.textFont.ascent);
-        this.style.textFont.draw(target, this.text, pos.copy.add(this.style.tilePadding.left, 0)).exec();
-        pos.add(0, -this.style.tilePadding.bottom - this.style.textFont.descent);
+    render = (target, left, right, top) => {
+        let start = top;
+        top -= this.style.tilePadding.top + this.style.textFont.ascent;
+        this.style.textFont.draw(target, this.text, new Vec2(left + this.style.tilePadding.left, top)).exec();
+        top -= this.style.tilePadding.bottom + this.style.textFont.descent;
+        drawDebugBox(target, new Box2(left, right, top, start));
+        return top;
     };
 
     #text;
@@ -446,7 +492,7 @@ globalThis.Spacer = class Spacer extends Widget {
     };
 
     #program;
-    render = (target, pos) => {
+    render = (target, left, right, top) => {
         this.#program = this.storage.use("SpacerProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -469,18 +515,18 @@ globalThis.Spacer = class Spacer extends Widget {
             `),
             program => program.delete(),
         ]);
-        pos.add(0, -this.style.spacerPadding.top);
+        top -= this.style.spacerPadding.top;
         renderer.draw({
             target,
             program: this.#program,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: new Box2(0, target.width, pos.y, pos.y -= this.style.lineWidth).divOrigin(target.size).multOrigin(2).move(-1, -1).transformFrom(),
+                posTransform: new Box2(0, target.width, top, top -= this.style.lineWidth).vertexMat3(target),
                 spacerColor: this.style.spacerColor,
             },
             blending: Renderer.Blending.overlay,
         }).exec();
-        pos.add(0, -this.style.spacerPadding.bottom);
+        return top - this.style.spacerPadding.bottom;
     };
 };
 
