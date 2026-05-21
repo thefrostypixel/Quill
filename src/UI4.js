@@ -34,7 +34,7 @@ let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => backgroun
 // menuRadius = buttonRadius + padding
 // buttonRadius + buttonPadding + .5 * textFont.size
 let style = {
-    menuSpace: new Padding2(20),
+    menuSpacing: new Padding2(20),
     menuPadding: new Padding2(24),
     menuRadius: 40,
     menuBackground: Color.okLab({L: .25}, .5),
@@ -58,6 +58,12 @@ let style = {
 
     tilePadding: new Padding2(8),
     tileRadius: 16,
+
+    tabBarSpacing: new Padding2(0, 8),
+    tabBarPadding: new Padding2(32, 8),
+    tabBarGap: -8,
+    tabBarHighlightRadius: 16,
+    tabBarHighlightColor: Color.okLab({L: .8}, .25),
 
     spacerPadding: new Padding2(0, 8),
     spacerColor: Color.okLab({L: .8}, .1),
@@ -176,7 +182,7 @@ globalThis.Menus = class Menus {
 
     #menus = [];
     menu = () => {
-        let menu = new Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
+        let menu = new Menus.Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
         this.#menus.push(menu);
         return menu;
     };
@@ -187,7 +193,7 @@ globalThis.Menus = class Menus {
     };
 };
 
-globalThis.Widget = class Widget {
+Menus.Widget = class Widget {
     #menus;
     get menus() {
         return this.#menus ??= this.owner instanceof Menus ? this.owner : this.owner.menus;
@@ -210,7 +216,7 @@ globalThis.Widget = class Widget {
     }
 };
 
-globalThis.Menu = class Menu extends Widget {
+Menus.Menu = class Menu extends Menus.Widget {
     constructor(owner, remover) {
         super();
         this.#owner = owner;
@@ -239,20 +245,29 @@ globalThis.Menu = class Menu extends Widget {
         this.#scroll = scroll;
     }
 
-    calcLayout = () => {
-        let width = Math.min(this.renderer.width - this.style.menuSpace.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...this.#content.map(e => e.width())) + this.style.menuPadding.xTotal));
-        let sizes = this.#content.map(e => e.size(width - this.style.menuPadding.xTotal));
-        let height = Math.min(this.renderer.height - this.style.menuSpace.yTotal, sizes.reduce((height, size) => height + size.height, this.style.menuPadding.yTotal));
+    layout = () => {
+        let layouts = Array.from(this.#content, () => ({wishWidth: 0}));
+        this.#content.forEach((e, i) => e?.wishWidth?.(layouts[i]));
+        let width = Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...layouts.map(layout => layout.wishWidth)) + this.style.menuPadding.xTotal));
+        this.#content.forEach((e, i) => {
+            layouts[i].width = width - this.style.menuPadding.xTotal;
+            layouts[i].height = 0;
+            e?.height?.(layouts[i]);
+            layouts[i].size = new Vec2(layouts[i].width, layouts[i].height);
+        });
+        let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
+        let height = Math.min(this.renderer.height - this.style.menuSpacing.yTotal, contentHeight);
+        this.scroll = Math.min(this.scroll, contentHeight - height);
         let box = new Box2({width, height});
         box.center = this.renderer.size.scale(.5);
-        return {box, sizes};
+        return {box, layouts};
     };
 
     #contentTexture;
     #backgroundProgram;
     #contentProgram;
     render = target => {
-        let {box, sizes} = this.calcLayout();
+        let {box, layouts} = this.layout();
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
         if (this.#contentTexture) {
             this.#contentTexture.clear(box.size.add(2 * extra, 2 * extra));
@@ -362,13 +377,11 @@ globalThis.Menu = class Menu extends Widget {
             },
             blending: Renderer.Blending.overlay,
         }).exec();
-
-        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll/*this.#contentTexture.height - this.style.menuPadding.yMinus - extra + this.scroll*/);
+        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
         for (let i = 0; i < this.#content.length; i++) {
-            this.#content[i].render(this.#contentTexture, pos.copy, sizes[i]);
-            pos.y -= sizes[i].height;
+            this.#content[i].render(this.#contentTexture, pos.copy, layouts[i]);
+            pos.y -= layouts[i].height;
         }
-
         renderer.draw({
             target,
             program: this.#contentProgram,
@@ -391,23 +404,28 @@ globalThis.Menu = class Menu extends Widget {
 
     #content = [];
     title = title => {
-        let element = new Title(this, () => this.#content.splice(this.#content.indexOf(element), 1), title);
+        let element = new Menus.Title(this, () => this.#content.splice(this.#content.indexOf(element), 1), title);
         this.#content.push(element);
         return element;
     };
     tile = (name, description) => {
-        let element = new Tile(this, () => this.#content.splice(this.#content.indexOf(element), 1), name, description);
+        let element = new Menus.Tile(this, () => this.#content.splice(this.#content.indexOf(element), 1), name, description);
+        this.#content.push(element);
+        return element;
+    };
+    tabBar = (tabs = [], selected = tabs[0]?.id || "") => {
+        let element = new Menus.TabBar(this, () => this.#content.splice(this.#content.indexOf(element), 1), tabs, selected);
         this.#content.push(element);
         return element;
     };
     spacer = () => {
-        let element = new Spacer(this, () => this.#content.splice(this.#content.indexOf(element), 1));
+        let element = new Menus.Spacer(this, () => this.#content.splice(this.#content.indexOf(element), 1));
         this.#content.push(element);
         return element;
     };
 };
 
-globalThis.Title = class Title extends Widget {
+Menus.Title = class Title extends Menus.Widget {
     constructor(owner, remover, title) {
         super();
         this.#owner = owner;
@@ -428,12 +446,10 @@ globalThis.Title = class Title extends Widget {
         }
     };
 
-    width = () => this.style.titlePadding.left + this.style.titleFont.fine(this.translations.translate(this.title)).right;
-    size = width => {
-        return {width, height: this.style.titlePadding.yTotal + this.style.titleFont.height};
-    };
-    render = (target, pos, size) => {
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
+    wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(this.translations.translate(this.title)).right;
+    height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height;
+    render = (target, pos, layout) => {
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
         pos.y -= this.style.titlePadding.top + this.style.titleFont.ascent;
         this.style.titleFont.draw(target, this.translations.translate(this.title), pos).exec();
@@ -448,7 +464,7 @@ globalThis.Title = class Title extends Widget {
     }
 };
 
-globalThis.Tile = class Tile extends Widget {
+Menus.Tile = class Tile extends Menus.Widget {
     constructor(owner, remover, name, description) {
         super();
         this.#owner = owner;
@@ -470,12 +486,10 @@ globalThis.Tile = class Tile extends Widget {
         }
     };
 
-    width = () => this.style.tilePadding.left + Math.max(this.style.nameFont.fine(this.translations.translate(this.name)).right, this.style.descriptionFont.fine(this.translations.translate(this.description)).right);
-    size = width => {
-        return {width, height: this.style.tilePadding.yTotal + (this.name ? this.style.nameFont.height : 0) + (this.description ? this.style.descriptionFont.height : 0)};
-    };
-    render = (target, pos, size) => {
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
+    wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(this.translations.translate(this.name)).right, this.style.descriptionFont.fine(this.translations.translate(this.description)).right);
+    height = layout => layout.height = this.style.tilePadding.yTotal + (this.name ? this.style.nameFont.height : 0) + (this.description ? this.style.descriptionFont.height : 0);
+    render = (target, pos, layout) => {
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.tilePadding.left;
         pos.y -= this.style.tilePadding.top;
         if (this.name) {
@@ -507,7 +521,149 @@ globalThis.Tile = class Tile extends Widget {
     }
 };
 
-globalThis.Spacer = class Spacer extends Widget {
+Menus.TabBar = class TabBar extends Menus.Widget {
+    constructor(owner, remover, tabs, selected) {
+        super();
+        this.#owner = owner;
+        this.#remover = remover;
+        this.tabs = tabs;
+        this.selected = selected;
+    }
+
+    #owner;
+    get owner() {
+        return this.#owner;
+    }
+
+    #remover;
+    remove = () => {
+        if (this.owner) {
+            this.#owner = undefined;
+            this.#remover();
+        }
+    };
+
+    #scroll = 0;
+    get scroll() {
+        return this.#scroll;
+    }
+    set scroll(scroll) {
+        this.#scroll = scroll;
+    }
+
+    #program;
+    wishWidth = layout => {
+        layout.gaps = !!this.#tabs.length * (this.#tabs.length - 1) * this.style.tabBarGap;
+        layout.widths = this.#tabs.map(tab => this.style.tabBarPadding.xTotal + this.style.nameFont.fine(this.translations.translate(tab.name)).right);
+        layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps);
+    };
+    height = layout => {
+        this.scroll = Math.min(this.scroll, Math.max(0, layout.wishWidth - layout.width));
+        layout.height = this.style.tabBarSpacing.yTotal + this.style.tabBarPadding.yTotal + this.style.nameFont.height;
+    };
+    render = (target, pos, layout) => {
+        this.#program = this.storage.use("TabBarProgram", () => [
+            this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 highlightSize;
+            uniform vec2 highlightCenter;
+            uniform float highlightRadius;
+            uniform vec4 highlightColor;
+            out vec4 color;
+
+            float roundBoxDist(vec2 uv, vec2 center, vec2 size, float radius) {
+                vec2 vec = abs(uv - center) - .5 * size + radius;
+                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+            }
+
+            void main() {
+                float distance = roundBoxDist(uv, highlightCenter, highlightSize, highlightRadius);
+                color = distance > 0. ? vec4(0) : highlightColor;
+            }
+            `),
+            program => program.delete(),
+        ]);
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        if (this.#tabs.length) {
+            pos.x += this.style.tabBarSpacing.left - this.scroll;
+            pos.y -= this.style.tabBarSpacing.top;
+            let widths = Array.from(layout.widths);
+            let remainder = layout.width - layout.wishWidth;
+            while (remainder > 1e-7) {
+                let smallest;
+                let smallestWidth = Infinity;
+                let nextSmallestWidth = Infinity;
+                widths.forEach((width, i) => {
+                    if (width + 1e-7 < smallestWidth) {
+                        nextSmallestWidth = smallestWidth;
+                        smallestWidth = width;
+                        smallest = [i];
+                    } else if (width < smallestWidth + 1e-7) {
+                        smallest.push(i);
+                    } else if (width < nextSmallestWidth) {
+                        nextSmallestWidth = width;
+                    }
+                });
+                smallest.forEach(i => widths[i] += Math.min(remainder / smallest.length, nextSmallestWidth - smallestWidth));
+                remainder -= Math.min(remainder, (nextSmallestWidth - smallestWidth) * smallest.length);
+            }
+            this.#tabs.forEach((tab, i) => {
+                // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
+                if (this.selected == tab.id) {
+                    let box = new Box2(pos.copy, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height));
+                    renderer.draw({
+                        target,
+                        program: this.#program,
+                        mesh: renderer.boxMesh2D,
+                        uniforms: {
+                            posTransform: box.vertexMat3(target),
+                            uvTransform: box.transformMat3(),
+                            highlightSize: box.size,
+                            highlightCenter: box.center,
+                            highlightRadius: this.style.tabBarHighlightRadius,
+                            highlightColor: this.style.tabBarHighlightColor,
+                        },
+                        blending: Renderer.Blending.overlay,
+                    }).exec();
+                }
+                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(.5 * (widths[i] - layout.widths[i]) + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
+                pos.x += widths[i] + this.style.tabBarGap;
+            });
+        }
+    };
+
+    #tabs;
+    get tabs() {
+        return Array.from(this.#tabs);
+    }
+    set tabs(tabs) {
+        this.#tabs = tabs;
+    }
+
+    #selected;
+    get selected() {
+        return this.#selected;
+    }
+    set selected(selected) {
+        this.#selected = `${selected || ""}`;
+    }
+};
+
+Menus.Spacer = class Spacer extends Menus.Widget {
     constructor(owner, remover) {
         super();
         this.#owner = owner;
@@ -528,9 +684,8 @@ globalThis.Spacer = class Spacer extends Widget {
     };
 
     #program;
-    width = () => 0;
-    size = width => ({width, height: this.style.spacerPadding.yTotal + this.style.lineWidth});
-    render = (target, pos, size) => {
+    height = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
+    render = (target, pos, layout) => {
         this.#program = this.storage.use("SpacerProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -553,7 +708,7 @@ globalThis.Spacer = class Spacer extends Widget {
             `),
             program => program.delete(),
         ]);
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         renderer.draw({
             target,
             program: this.#program,
@@ -576,14 +731,13 @@ let time = new Time();
 let menus = new Menus(style, renderer, translations, cache);
 let menu = menus.menu();
 let e1 = menu.title("inspector");
-let e2 = menu.tile("inspector.text");
-let e3 = menu.tile("inspector.table");
-let e4 = menu.spacer();
-let e5 = menu.title("inspector.text");
-let e6 = menu.tile("text.family", "The font family.");
-let e7 = menu.tile("text.underline", "There's not really anything to describe here; however it's also important to test line breaks for very long descriptions.");
-let e8 = menu.tile("And of course it's also important to test line breaks in the names of tiles.");
-// let e9 = menu.spacer();
+let e2 = menu.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
+let e3 = menu.spacer();
+let e4 = menu.title("inspector.text");
+let e5 = menu.tile("text.family", "The font family.");
+let e6 = menu.tile("text.underline", "There's not really anything to describe here; however it's also important to test line breaks for very long descriptions.");
+let e7 = menu.tile("And of course it's also important to test line breaks in the names of tiles.");
+// let e8 = menu.spacer();
 
 // let controls = new Controls(time, settings.controls, document, false);
 time.repeat(() => {
@@ -595,15 +749,6 @@ time.repeat(() => {
         renderer.drawCopy(background, target2D, centerImage(background, target2D)).exec();
     }
 
-    // new Font({
-    //     size: 128,
-    //     weight: 400,
-    //     font: "SF Pro Display",
-    //     color: Color.hex("00E7CB").mix(Color.hex("FFE7CB"), Math.min(time.sec % 2, 2 - time.sec % 2) ** (2 / 3)),
-    //     cache,
-    // }).draw(target2D, "Hello World!", new Vec2(160, target2D.height - 256)).exec();
-
-    // drawMenu(target2D, new Box2(target2D.width * .4, target2D.width * .6, target2D.height * .25, target2D.height * .75));
     menu.render(target2D);
 
     renderer.show(target2D).delete();
