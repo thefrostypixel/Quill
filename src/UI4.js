@@ -34,6 +34,7 @@ let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => backgroun
 // menuRadius = buttonRadius + padding
 // buttonRadius + buttonPadding + .5 * textFont.size
 let style = {
+    menuSpace: new Padding2(20),
     menuPadding: new Padding2(24),
     menuRadius: 40,
     menuBackground: Color.okLab({L: .25}, .5),
@@ -51,7 +52,6 @@ let style = {
     visibilityAccel: 20000,
     stateAccel: 20,
 
-    gap: new Padding2(20),
     lineWidth: 2,
 
     titlePadding: new Padding2(16, 16, 4, 8),
@@ -59,7 +59,7 @@ let style = {
     tilePadding: new Padding2(8),
     tileRadius: 16,
 
-    spacerPadding: new Padding2(0, 24),
+    spacerPadding: new Padding2(0, 8),
     spacerColor: Color.okLab({L: .8}, .1),
 
     titleFont: new Font({
@@ -69,7 +69,7 @@ let style = {
         color: Color.okLab({L: .9}),
         cache,
     }),
-    textFont: new Font({
+    nameFont: new Font({
         size: 16,
         weight: 400,
         font: "SF Pro Display",
@@ -133,9 +133,10 @@ let drawDebugBox = (target, box, fill = Color.lRgb(0, 1, 0, .2), border = Color.
 };
 
 globalThis.Menus = class Menus {
-    constructor(style, renderer, cache) {
+    constructor(style, renderer, translations, cache) {
         this.#style = style;
         this.#renderer = renderer;
+        this.#translations = translations;
         this.#cache = cache;
         if (!this.#cache) {
             this.#ownCache = new Cache();
@@ -150,6 +151,11 @@ globalThis.Menus = class Menus {
     #renderer;
     get renderer() {
         return this.#renderer;
+    }
+
+    #translations;
+    get translations() {
+        return this.#translations;
     }
 
     #cache;
@@ -193,6 +199,9 @@ globalThis.Widget = class Widget {
     get renderer() {
         return this.menus.renderer;
     }
+    get translations() {
+        return this.menus.translations;
+    }
     get cache() {
         return this.menus.cache;
     }
@@ -222,12 +231,6 @@ globalThis.Menu = class Menu extends Widget {
         }
     };
 
-    // #box = new Box2(1200, 1700, 500, 1500);
-    #box = new Box2(200, 700, 200, 900);
-    get box() {
-        return this.#box;
-    }
-
     #scroll = 0;
     get scroll() {
         return this.#scroll;
@@ -236,11 +239,20 @@ globalThis.Menu = class Menu extends Widget {
         this.#scroll = scroll;
     }
 
+    calcLayout = () => {
+        let width = Math.min(this.renderer.width - this.style.menuSpace.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...this.#content.map(e => e.width())) + this.style.menuPadding.xTotal));
+        let sizes = this.#content.map(e => e.size(width - this.style.menuPadding.xTotal));
+        let height = Math.min(this.renderer.height - this.style.menuSpace.yTotal, sizes.reduce((height, size) => height + size.height, this.style.menuPadding.yTotal));
+        let box = new Box2({width, height});
+        box.center = this.renderer.size.scale(.5);
+        return {box, sizes};
+    };
+
     #contentTexture;
     #backgroundProgram;
     #contentProgram;
     render = target => {
-        let box = this.#box;
+        let {box, sizes} = this.calcLayout();
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
         if (this.#contentTexture) {
             this.#contentTexture.clear(box.size.add(2 * extra, 2 * extra));
@@ -351,11 +363,10 @@ globalThis.Menu = class Menu extends Widget {
             blending: Renderer.Blending.overlay,
         }).exec();
 
-        let left = this.style.menuPadding.xMinus + extra;
-        let right = this.#contentTexture.width - left;
-        let top = this.#contentTexture.height - this.style.menuPadding.yMinus - extra + this.scroll;
-        for (let content of this.#content) {
-            top = content.render(this.#contentTexture, left, right, top);
+        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll/*this.#contentTexture.height - this.style.menuPadding.yMinus - extra + this.scroll*/);
+        for (let i = 0; i < this.#content.length; i++) {
+            this.#content[i].render(this.#contentTexture, pos.copy, sizes[i]);
+            pos.y -= sizes[i].height;
         }
 
         renderer.draw({
@@ -384,8 +395,8 @@ globalThis.Menu = class Menu extends Widget {
         this.#content.push(element);
         return element;
     };
-    tile = text => {
-        let element = new Tile(this, () => this.#content.splice(this.#content.indexOf(element), 1), text);
+    tile = (name, description) => {
+        let element = new Tile(this, () => this.#content.splice(this.#content.indexOf(element), 1), name, description);
         this.#content.push(element);
         return element;
     };
@@ -417,13 +428,15 @@ globalThis.Title = class Title extends Widget {
         }
     };
 
-    render = (target, left, right, top) => {
-        let start = top;
-        top -= this.style.titlePadding.top + this.style.titleFont.ascent;
-        this.style.titleFont.draw(target, this.title, new Vec2(left + this.style.titlePadding.left, top)).exec();
-        top -= this.style.titlePadding.bottom + this.style.titleFont.descent;
-        drawDebugBox(target, new Box2(left, right, top, start));
-        return top;
+    width = () => this.style.titlePadding.left + this.style.titleFont.fine(this.translations.translate(this.title)).right;
+    size = width => {
+        return {width, height: this.style.titlePadding.yTotal + this.style.titleFont.height};
+    };
+    render = (target, pos, size) => {
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
+        pos.x += this.style.titlePadding.left;
+        pos.y -= this.style.titlePadding.top + this.style.titleFont.ascent;
+        this.style.titleFont.draw(target, this.translations.translate(this.title), pos).exec();
     };
 
     #title;
@@ -436,11 +449,12 @@ globalThis.Title = class Title extends Widget {
 };
 
 globalThis.Tile = class Tile extends Widget {
-    constructor(owner, remover, text) {
+    constructor(owner, remover, name, description) {
         super();
         this.#owner = owner;
         this.#remover = remover;
-        this.#text = text;
+        this.name = name;
+        this.description = description;
     }
 
     #owner;
@@ -456,18 +470,40 @@ globalThis.Tile = class Tile extends Widget {
         }
     };
 
-    render = (target, left, right, top) => {
-        let start = top;
-        top -= this.style.tilePadding.top + this.style.textFont.ascent;
-        this.style.textFont.draw(target, this.text, new Vec2(left + this.style.tilePadding.left, top)).exec();
-        top -= this.style.tilePadding.bottom + this.style.textFont.descent;
-        drawDebugBox(target, new Box2(left, right, top, start));
-        return top;
+    width = () => this.style.tilePadding.left + Math.max(this.style.nameFont.fine(this.translations.translate(this.name)).right, this.style.descriptionFont.fine(this.translations.translate(this.description)).right);
+    size = width => {
+        return {width, height: this.style.tilePadding.yTotal + (this.name ? this.style.nameFont.height : 0) + (this.description ? this.style.descriptionFont.height : 0)};
+    };
+    render = (target, pos, size) => {
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
+        pos.x += this.style.tilePadding.left;
+        pos.y -= this.style.tilePadding.top;
+        if (this.name) {
+            pos.y -= this.style.nameFont.ascent;
+            this.style.nameFont.draw(target, this.translations.translate(this.name), pos).exec();
+            pos.y -= this.style.nameFont.descent;
+        }
+        if (this.description) {
+            pos.y -= this.style.descriptionFont.ascent;
+            this.style.descriptionFont.draw(target, this.translations.translate(this.description), pos).exec();
+            pos.y -= this.style.descriptionFont.descent;
+        }
     };
 
-    #text;
-    get text() {
-        return this.#text;
+    #name;
+    get name() {
+        return this.#name;
+    }
+    set name(name) {
+        this.#name = `${name || ""}`;
+    }
+
+    #description;
+    get description() {
+        return this.#description;
+    }
+    set description(description) {
+        this.#description = `${description || ""}`;
     }
 };
 
@@ -492,7 +528,9 @@ globalThis.Spacer = class Spacer extends Widget {
     };
 
     #program;
-    render = (target, left, right, top) => {
+    width = () => 0;
+    size = width => ({width, height: this.style.spacerPadding.yTotal + this.style.lineWidth});
+    render = (target, pos, size) => {
         this.#program = this.storage.use("SpacerProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -515,36 +553,37 @@ globalThis.Spacer = class Spacer extends Widget {
             `),
             program => program.delete(),
         ]);
-        top -= this.style.spacerPadding.top;
+        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + size.width, pos.y - size.height)));
         renderer.draw({
             target,
             program: this.#program,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: new Box2(0, target.width, top, top -= this.style.lineWidth).vertexMat3(target),
+                posTransform: new Box2(0, target.width, pos.y -= this.style.spacerPadding.top, pos.y - this.style.lineWidth).vertexMat3(target),
                 spacerColor: this.style.spacerColor,
             },
             blending: Renderer.Blending.overlay,
         }).exec();
-        return top - this.style.spacerPadding.bottom;
     };
 };
 
 
 
-let translations = new Translations();
+let translations = new Translations("/src/lang/index.json");
 
 let time = new Time();
 
-let menus = new Menus(style, renderer, cache);
+let menus = new Menus(style, renderer, translations, cache);
 let menu = menus.menu();
-let e1 = menu.title("States");
-let e2 = menu.tile("Float");
-let e3 = menu.tile("Fix");
-let e4 = menu.title("Menus");
-let e5 = menu.tile("A menu");
-let e6 = menu.spacer();
-let e7 = menu.tile("Another menu");
+let e1 = menu.title("inspector");
+let e2 = menu.tile("inspector.text");
+let e3 = menu.tile("inspector.table");
+let e4 = menu.spacer();
+let e5 = menu.title("inspector.text");
+let e6 = menu.tile("text.family", "The font family.");
+let e7 = menu.tile("text.underline", "There's not really anything to describe here; however it's also important to test line breaks for very long descriptions.");
+let e8 = menu.tile("And of course it's also important to test line breaks in the names of tiles.");
+// let e9 = menu.spacer();
 
 // let controls = new Controls(time, settings.controls, document, false);
 time.repeat(() => {
