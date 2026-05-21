@@ -237,6 +237,24 @@ Menus.Menu = class Menu extends Menus.Widget {
         }
     };
 
+    #visible = false;
+    get visible() {
+        return this.#visible;
+    }
+    set visible(visible) {
+        this.#visible = visible;
+        if (!this.partiallyVisible) {
+            this.#content.forEach(e => e.endAnims?.());
+        }
+    }
+    #visibleAnim = new Anim(this.#visible, 200);
+    get visibleAnim() {
+        return this.#visibleAnim.value;
+    }
+    get partiallyVisible() {
+        return !!this.#visibleAnim.value;
+    }
+
     #scroll = 0;
     get scroll() {
         return this.#scroll;
@@ -449,7 +467,7 @@ Menus.Title = class Title extends Menus.Widget {
     wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(this.translations.translate(this.title)).right;
     height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height;
     render = (target, pos, layout) => {
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
         pos.y -= this.style.titlePadding.top + this.style.titleFont.ascent;
         this.style.titleFont.draw(target, this.translations.translate(this.title), pos).exec();
@@ -489,7 +507,7 @@ Menus.Tile = class Tile extends Menus.Widget {
     wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(this.translations.translate(this.name)).right, this.style.descriptionFont.fine(this.translations.translate(this.description)).right);
     height = layout => layout.height = this.style.tilePadding.yTotal + (this.name ? this.style.nameFont.height : 0) + (this.description ? this.style.descriptionFont.height : 0);
     render = (target, pos, layout) => {
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.tilePadding.left;
         pos.y -= this.style.tilePadding.top;
         if (this.name) {
@@ -551,6 +569,10 @@ Menus.TabBar = class TabBar extends Menus.Widget {
         this.#scroll = scroll;
     }
 
+    #instantAnim = true;
+    #highlightOpacity = new Anim(0, 200);
+    #highlightPos = new Anim({left: 0, right: 0}, 20000);
+
     #program;
     wishWidth = layout => {
         layout.gaps = !!this.#tabs.length * (this.#tabs.length - 1) * this.style.tabBarGap;
@@ -597,7 +619,7 @@ Menus.TabBar = class TabBar extends Menus.Widget {
             `),
             program => program.delete(),
         ]);
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         if (this.#tabs.length) {
             pos.x += this.style.tabBarSpacing.left - this.scroll;
             pos.y -= this.style.tabBarSpacing.top;
@@ -621,29 +643,37 @@ Menus.TabBar = class TabBar extends Menus.Widget {
                 smallest.forEach(i => widths[i] += Math.min(remainder / smallest.length, nextSmallestWidth - smallestWidth));
                 remainder -= Math.min(remainder, (nextSmallestWidth - smallestWidth) * smallest.length);
             }
+            let selectedExists = false;
             this.#tabs.forEach((tab, i) => {
-                // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
+                // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
                 if (this.selected == tab.id) {
-                    let box = new Box2(pos.copy, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height));
-                    renderer.draw({
-                        target,
-                        program: this.#program,
-                        mesh: renderer.boxMesh2D,
-                        uniforms: {
-                            posTransform: box.vertexMat3(target),
-                            uvTransform: box.transformMat3(),
-                            highlightSize: box.size,
-                            highlightCenter: box.center,
-                            highlightRadius: this.style.tabBarHighlightRadius,
-                            highlightColor: this.style.tabBarHighlightColor,
-                        },
-                        blending: Renderer.Blending.overlay,
-                    }).exec();
+                    this.#highlightPos.values.left = pos.x + this.scroll;
+                    this.#highlightPos.values.right = pos.x + widths[i] + this.scroll;
+                    this.#highlightPos.skip(this.#instantAnim || !this.#highlightOpacity.value);
+                    selectedExists = true;
                 }
                 this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(.5 * (widths[i] - layout.widths[i]) + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
                 pos.x += widths[i] + this.style.tabBarGap;
             });
+            this.#highlightOpacity.value = selectedExists;
+            this.#highlightOpacity.skip(this.#instantAnim);
+            let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y);
+            renderer.draw({
+                target,
+                program: this.#program,
+                mesh: renderer.boxMesh2D,
+                uniforms: {
+                    posTransform: box.vertexMat3(target),
+                    uvTransform: box.transformMat3(),
+                    highlightSize: box.size,
+                    highlightCenter: box.center,
+                    highlightRadius: this.style.tabBarHighlightRadius,
+                    highlightColor: Color.okLab(this.style.tabBarHighlightColor.L, this.style.tabBarHighlightColor.a, this.style.tabBarHighlightColor.b, this.style.tabBarHighlightColor.alpha * this.#highlightOpacity.value),
+                },
+                blending: Renderer.Blending.overlay,
+            }).exec();
         }
+        this.#instantAnim = false;
     };
 
     #tabs;
@@ -708,7 +738,7 @@ Menus.Spacer = class Spacer extends Menus.Widget {
             `),
             program => program.delete(),
         ]);
-        // drawDebugBox(target, new Box2(pos.copy, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         renderer.draw({
             target,
             program: this.#program,
