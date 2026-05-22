@@ -266,18 +266,19 @@ Menus.Menu = class Menu extends Menus.Widget {
     layout = () => {
         let layouts = Array.from(this.#content, () => ({wishWidth: 0}));
         this.#content.forEach((e, i) => e?.wishWidth?.(layouts[i]));
-        let width = Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...layouts.map(layout => layout.wishWidth)) + this.style.menuPadding.xTotal));
+        let width = Math.ceil(Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...layouts.map(layout => layout.wishWidth)) + this.style.menuPadding.xTotal)));
         this.#content.forEach((e, i) => {
             layouts[i].width = width - this.style.menuPadding.xTotal;
             layouts[i].height = 0;
             e?.height?.(layouts[i]);
+            layouts[i].height = Math.ceil(layouts[i].height);
             layouts[i].size = new Vec2(layouts[i].width, layouts[i].height);
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
         let height = Math.min(this.renderer.height - this.style.menuSpacing.yTotal, contentHeight);
         this.scroll = Math.min(this.scroll, contentHeight - height);
         let box = new Box2({width, height});
-        box.center = this.renderer.size.scale(.5);
+        box.center = this.renderer.size.scale(.5).floor().add(.5 * width % 1, .5 * height % 1);
         return {box, layouts};
     };
 
@@ -287,11 +288,7 @@ Menus.Menu = class Menu extends Menus.Widget {
     render = target => {
         let {box, layouts} = this.layout();
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
-        if (this.#contentTexture) {
-            this.#contentTexture.clear(box.size.add(2 * extra, 2 * extra));
-        } else {
-            this.#contentTexture = this.renderer.texture(box.size.add(2 * extra, 2 * extra));
-        }
+        (this.#contentTexture ??= this.renderer.texture(box.size.add(2 * extra, 2 * extra))).clear(box.size.add(2 * extra, 2 * extra));
         this.#backgroundProgram = this.storage.use("MenuBackgroundProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -372,10 +369,16 @@ Menus.Menu = class Menu extends Menus.Widget {
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
                 float pos = clamp(distance / padding, 0., 1.);
                 color = texture(content, (uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0))) / contentSize) * (distance > 0. ? sqrt(1. - pos * pos) : 1.);
+//                color = vec4(mod(uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0)), 1.), 0., 1.);
             }
             `),
             program => program.delete(),
         ]);
+        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
+        for (let i = 0; i < this.#content.length; i++) {
+            this.#content[i].render(this.#contentTexture, pos.copy, layouts[i]);
+            pos.y -= layouts[i].height;
+        }
         renderer.draw({
             target,
             program: this.#backgroundProgram,
@@ -395,11 +398,6 @@ Menus.Menu = class Menu extends Menus.Widget {
             },
             blending: Renderer.Blending.overlay,
         }).exec();
-        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
-        for (let i = 0; i < this.#content.length; i++) {
-            this.#content[i].render(this.#contentTexture, pos.copy, layouts[i]);
-            pos.y -= layouts[i].height;
-        }
         renderer.draw({
             target,
             program: this.#contentProgram,
@@ -647,16 +645,13 @@ Menus.TabBar = class TabBar extends Menus.Widget {
             this.#tabs.forEach((tab, i) => {
                 // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
                 if (this.selected == tab.id) {
-                    this.#highlightPos.values.left = pos.x + this.scroll;
-                    this.#highlightPos.values.right = pos.x + widths[i] + this.scroll;
-                    this.#highlightPos.skip(this.#instantAnim || !this.#highlightOpacity.value);
+                    this.#highlightPos.to({left: pos.x + this.scroll, right: pos.x + widths[i] + this.scroll}).skip(this.#instantAnim || !this.#highlightOpacity.value);
                     selectedExists = true;
                 }
                 this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(.5 * (widths[i] - layout.widths[i]) + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
                 pos.x += widths[i] + this.style.tabBarGap;
             });
-            this.#highlightOpacity.value = selectedExists;
-            this.#highlightOpacity.skip(this.#instantAnim);
+            this.#highlightOpacity.to(selectedExists).skip(this.#instantAnim);
             let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y);
             renderer.draw({
                 target,
