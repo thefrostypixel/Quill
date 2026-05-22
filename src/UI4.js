@@ -369,7 +369,7 @@ Menus.Menu = class Menu extends Menus.Widget {
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
                 float pos = clamp(distance / padding, 0., 1.);
                 color = texture(content, (uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0))) / contentSize) * (distance > 0. ? sqrt(1. - pos * pos) : 1.);
-//                color = vec4(mod(uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0)), 1.), 0., 1.);
+                // color = vec4(mod(uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0)), 1.), 0., 1.);
             }
             `),
             program => program.delete(),
@@ -462,13 +462,17 @@ Menus.Title = class Title extends Menus.Widget {
         }
     };
 
-    wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(this.translations.translate(this.title)).right;
-    height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height;
+    wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(layout.title = this.translations.translate(this.title)).right;
+    height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title, layout.width - this.style.titlePadding.xTotal)).length;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
-        pos.y -= this.style.titlePadding.top + this.style.titleFont.ascent;
-        this.style.titleFont.draw(target, this.translations.translate(this.title), pos).exec();
+        pos.y -= this.style.titlePadding.top;
+        layout.lines.forEach(line => {
+            pos.y -= this.style.titleFont.ascent;
+            this.style.titleFont.draw(target, line, pos).exec();
+            pos.y -= this.style.titleFont.descent;
+        });
     };
 
     #title;
@@ -502,22 +506,22 @@ Menus.Tile = class Tile extends Menus.Widget {
         }
     };
 
-    wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(this.translations.translate(this.name)).right, this.style.descriptionFont.fine(this.translations.translate(this.description)).right);
-    height = layout => layout.height = this.style.tilePadding.yTotal + (this.name ? this.style.nameFont.height : 0) + (this.description ? this.style.descriptionFont.height : 0);
+    wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(layout.name = this.translations.translate(this.name)).right, this.style.descriptionFont.fine(layout.description = this.translations.translate(this.description)).right);
+    height = layout => layout.height = this.style.tilePadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name, layout.width - this.style.tilePadding.xTotal)).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description, layout.width - this.style.tilePadding.xTotal)).length;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.tilePadding.left;
         pos.y -= this.style.tilePadding.top;
-        if (this.name) {
+        layout.nameLines.forEach(line => {
             pos.y -= this.style.nameFont.ascent;
-            this.style.nameFont.draw(target, this.translations.translate(this.name), pos).exec();
+            this.style.nameFont.draw(target, line, pos).exec();
             pos.y -= this.style.nameFont.descent;
-        }
-        if (this.description) {
+        });
+        layout.descriptionLines.forEach(line => {
             pos.y -= this.style.descriptionFont.ascent;
-            this.style.descriptionFont.draw(target, this.translations.translate(this.description), pos).exec();
+            this.style.descriptionFont.draw(target, line, pos).exec();
             pos.y -= this.style.descriptionFont.descent;
-        }
+        });
     };
 
     #name;
@@ -611,8 +615,8 @@ Menus.TabBar = class TabBar extends Menus.Widget {
             }
 
             void main() {
-                float distance = roundBoxDist(uv, highlightCenter, highlightSize, highlightRadius);
-                color = distance > 0. ? vec4(0) : highlightColor;
+                float distance = roundBoxDist(uv, highlightCenter, highlightSize - 1.5, highlightRadius);
+                color = highlightColor * smoothstep(1., 0., distance);
             }
             `),
             program => program.delete(),
@@ -756,12 +760,13 @@ let time = new Time();
 let menus = new Menus(style, renderer, translations, cache);
 let menu = menus.menu();
 let e1 = menu.title("inspector");
+menu.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
 let e2 = menu.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
 let e3 = menu.spacer();
 let e4 = menu.title("inspector.text");
 let e5 = menu.tile("text.family", "The font family.");
-let e6 = menu.tile("text.underline", "There's not really anything to describe here; however it's also important to test line breaks for very long descriptions.");
-let e7 = menu.tile("And of course it's also important to test line breaks in the names of tiles.");
+let e6 = menu.tile("text.underline", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
+let e7 = menu.tile("And of course it’s also important to test line breaks in the names of tiles.");
 // let e8 = menu.spacer();
 
 // let controls = new Controls(time, settings.controls, document, false);
