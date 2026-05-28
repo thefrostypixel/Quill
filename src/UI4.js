@@ -216,11 +216,30 @@ Menus.Widget = class Widget {
     }
 };
 
-Menus.Menu = class Menu extends Menus.Widget {
+Menus.ElementHolder = class ElementHolder extends Menus.Widget {
+    #elements = [];
+    get elements() {
+        return Array.from(this.#elements);
+    }
+    #addElement = (constructor, ...args) => {
+        let element = new constructor(this, () => this.#elements.splice(this.#elements.indexOf(element), 1), ...args);
+        this.#elements.push(element);
+        return element;
+    };
+
+    title = title => this.#addElement(Menus.Title, title);
+    tile = (name, description) => this.#addElement(Menus.Tile, name, description);
+    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(Menus.TabBar, tabs, selected);
+    spacer = () => this.#addElement(Menus.Spacer);
+};
+
+Menus.Menu = class Menu extends Menus.ElementHolder {
     constructor(owner, remover) {
-        super();
-        this.#owner = owner;
-        this.#remover = remover;
+        super(owner, () => {
+            remover();
+            this.elements.forEach(e => e.remove());
+            this.#contentTexture?.delete();
+        });
     }
 
     #owner;
@@ -244,7 +263,7 @@ Menus.Menu = class Menu extends Menus.Widget {
     set visible(visible) {
         this.#visible = visible;
         if (!this.partiallyVisible) {
-            this.#content.forEach(e => e.endAnims?.());
+            this.elements.forEach(e => e.endAnims?.());
         }
     }
     #visibleAnim = new Anim(this.#visible, 200);
@@ -264,10 +283,10 @@ Menus.Menu = class Menu extends Menus.Widget {
     }
 
     layout = () => {
-        let layouts = Array.from(this.#content, () => ({wishWidth: 0}));
-        this.#content.forEach((e, i) => e?.wishWidth?.(layouts[i]));
+        let layouts = Array.from(this.elements, () => ({wishWidth: 0}));
+        this.elements.forEach((e, i) => e?.wish?.(layouts[i]));
         let width = Math.ceil(Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...layouts.map(layout => layout.wishWidth)) + this.style.menuPadding.xTotal)));
-        this.#content.forEach((e, i) => {
+        this.elements.forEach((e, i) => {
             layouts[i].width = width - this.style.menuPadding.xTotal;
             layouts[i].height = 0;
             e?.height?.(layouts[i]);
@@ -375,8 +394,8 @@ Menus.Menu = class Menu extends Menus.Widget {
             program => program.delete(),
         ]);
         let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
-        for (let i = 0; i < this.#content.length; i++) {
-            this.#content[i].render(this.#contentTexture, pos.copy, layouts[i]);
+        for (let i = 0; i < this.elements.length; i++) {
+            this.elements[i].render(this.#contentTexture, pos.copy, layouts[i]);
             pos.y -= layouts[i].height;
         }
         renderer.draw({
@@ -417,35 +436,11 @@ Menus.Menu = class Menu extends Menus.Widget {
             blending: Renderer.Blending.overlay,
         }).exec();
     };
-
-    #content = [];
-    title = title => {
-        let element = new Menus.Title(this, () => this.#content.splice(this.#content.indexOf(element), 1), title);
-        this.#content.push(element);
-        return element;
-    };
-    tile = (name, description) => {
-        let element = new Menus.Tile(this, () => this.#content.splice(this.#content.indexOf(element), 1), name, description);
-        this.#content.push(element);
-        return element;
-    };
-    tabBar = (tabs = [], selected = tabs[0]?.id || "") => {
-        let element = new Menus.TabBar(this, () => this.#content.splice(this.#content.indexOf(element), 1), tabs, selected);
-        this.#content.push(element);
-        return element;
-    };
-    spacer = () => {
-        let element = new Menus.Spacer(this, () => this.#content.splice(this.#content.indexOf(element), 1));
-        this.#content.push(element);
-        return element;
-    };
 };
 
 Menus.Title = class Title extends Menus.Widget {
     constructor(owner, remover, title) {
-        super();
-        this.#owner = owner;
-        this.#remover = remover;
+        super(owner, remover);
         this.#title = title;
     }
 
