@@ -60,11 +60,21 @@ let style = {
     tileRadius: 16,
     tileComponentSpacing: 8,
 
+    toggleSize: new Vec2(48, 28),
+    toggleBackground0: /*Color.okLab({L: .95}, .3)*/Color.okLab({L: .55}),
+    toggleBackground1: Color.okLab({L: .7, a: -.06, b: -.15}),
+    toggleThumbRadius: 10,
+    toggleThumbColor: Color.okLab({L: .9}),
+    toggleThumbShadow: Color.okLab({}, .15),
+    toggleAccel: 500,
+
     tabBarSpacing: new Padding2(0, 8),
     tabBarPadding: new Padding2(32, 8),
     tabBarGap: -8,
     tabBarHighlightRadius: 16,
     tabBarHighlightColor: Color.okLab({L: .8}, .25),
+    tabBarHighlightOpacityAccel: 200,
+    tabBarHighlightPosAccel: 20000,
 
     spacerPadding: new Padding2(0, 8),
     spacerColor: Color.okLab({L: .8}, .1),
@@ -92,7 +102,6 @@ let style = {
     }),
 
 
-    toggleSwitchAccel: 500,
     checkmarkAccel: 200,
     buttonColorUnchecked: Color.okLab({L: .95}, .3),
     buttonColorChecked: Color.okLab({L: .7, a: -.06, b: -.15}),
@@ -530,11 +539,109 @@ Menus.Tile = class Tile extends Menus.Widget {
     }
 
     #components = [];
+    toggle = toggled => {
+        let component = new Menus.Tile.Toggle(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
+        this.#components.push(component);
+        return component;
+    };
+};
+
+Menus.Tile.Toggle = class Toggle extends Menus.Widget {
+    constructor(owner, remover, toggled) {
+        super(owner, remover);
+        this.#toggleState = new Anim(0, this.style.toggleAccel);
+        this.toggled = toggled;
+    }
+
+    #instantAnim = true;
+    #toggleState;
+
+    #program;
+    layout = layout => {
+        layout.width = this.style.toggleSize.x;
+        layout.height = this.style.toggleSize.y;
+    };
+    render = (target, pos, layout) => {
+        this.#program = this.storage.use("ToggleProgram", () => [
+            this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 toggleSize;
+            uniform vec2 toggleCenter;
+            uniform float toggleRadius;
+            uniform vec4 toggleBackground;
+            uniform vec2 toggleThumbCenter;
+            uniform float toggleThumbRadius;
+            uniform vec4 toggleThumbColor;
+            uniform vec4 toggleThumbShadow;
+            out vec4 color;
+
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                vec2 vec = abs(uv - center) - .5 * size + radius;
+                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+            }
+
+            void main() {
+                float baseDist = roundBoxDist(uv, toggleSize - 1., toggleCenter, toggleRadius - .5);
+                float thumbDist = length(uv - toggleThumbCenter) - toggleThumbRadius - .5;
+                color = toggleThumbColor * smoothstep(1., 0., thumbDist);
+                color += (1. - color.a) * toggleThumbShadow * smoothstep(.5 * toggleSize.y - toggleThumbRadius, 0., thumbDist);
+                color += (1. - color.a) * toggleBackground * smoothstep(1., 0., baseDist);
+            }
+            `),
+            program => program.delete(),
+        ]);
+        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        // drawDebugBox(target, box);
+        renderer.draw({
+            target,
+            program: this.#program,
+            mesh: renderer.boxMesh2D,
+            uniforms: {
+                posTransform: box.vertexMat3(target),
+                uvTransform: box.transformMat3(),
+                toggleSize: box.size,
+                toggleCenter: box.center,
+                toggleRadius: .5 * box.height,
+                toggleBackground: this.style.toggleBackground0.copy.mix(this.style.toggleBackground1, this.#toggleState.value),
+                toggleThumbCenter: new Vec2(box.xMin + .5 * box.ySize + (box.xSize - box.ySize) * this.#toggleState.value, box.yCenter),
+                toggleThumbRadius: this.style.toggleThumbRadius,
+                toggleThumbColor: this.style.toggleThumbColor,
+                toggleThumbShadow: this.style.toggleThumbShadow,
+            },
+            blending: Renderer.Blending.overlay,
+        }).exec();
+        this.#instantAnim = false;
+    };
+
+    #toggled;
+    get toggled() {
+        return this.#toggled;
+    }
+    set toggled(toggled) {
+        this.#toggleState.to(this.#toggled = !!toggled).skip(this.#instantAnim);
+    }
+    toggle = () => this.toggled = !this.toggled;
 };
 
 Menus.TabBar = class TabBar extends Menus.Widget {
     constructor(owner, remover, tabs, selected) {
         super(owner, remover);
+        this.#highlightOpacity = new Anim(0, this.style.tabBarHighlightOpacityAccel);
+        this.#highlightPos = new Anim({left: 0, right: 0}, this.style.tabBarHighlightPosAccel);
         this.tabs = tabs;
         this.selected = selected;
     }
@@ -548,8 +655,8 @@ Menus.TabBar = class TabBar extends Menus.Widget {
     }
 
     #instantAnim = true;
-    #highlightOpacity = new Anim(0, 200);
-    #highlightPos = new Anim({left: 0, right: 0}, 20000);
+    #highlightOpacity;
+    #highlightPos;
 
     #program;
     wish = layout => {
@@ -728,7 +835,8 @@ let e4 = menu.title("inspector.text");
 let e5 = menu.tile("text.family", "The font family.");
 let e6 = menu.tile("text.underline", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
 let e7 = menu.tile("And of course it’s also important to test line breaks in the names of tiles.");
-// let e8 = menu.spacer();
+let e8 = menu.tile("text.italic");
+let e8c1 = e8.toggle(false);
 
 // let controls = new Controls(time, settings.controls, document, false);
 time.repeat(() => {
