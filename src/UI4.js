@@ -58,6 +58,7 @@ let style = {
 
     tilePadding: new Padding2(8),
     tileRadius: 16,
+    tileComponentSpacing: 8,
 
     tabBarSpacing: new Padding2(0, 8),
     tabBarPadding: new Padding2(32, 8),
@@ -293,7 +294,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         this.elements.forEach((e, i) => {
             layouts[i].width = width - this.style.menuPadding.xTotal;
             layouts[i].height = 0;
-            e?.height?.(layouts[i]);
+            e?.layout?.(layouts[i]);
             layouts[i].height = Math.ceil(layouts[i].height);
             layouts[i].size = new Vec2(layouts[i].width, layouts[i].height);
         });
@@ -340,14 +341,14 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             uniform float lineWidth;
             out vec4 color;
 
-            float roundBoxDist(vec2 uv, vec2 center, vec2 size, float radius) {
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
                 vec2 vec = abs(uv - center) - .5 * size + radius;
                 return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
             }
 
             void main() {
-                float lineDistance = roundBoxDist(uv, menuCenter, menuSize, menuRadius);
-                float shadowDistance = roundBoxDist(uv, menuCenter + menuShadowOffset, menuSize - menuShadowBlur, menuRadius);
+                float lineDistance = roundBoxDist(uv, menuSize, menuCenter, menuRadius);
+                float shadowDistance = roundBoxDist(uv, menuSize - menuShadowBlur, menuCenter + menuShadowOffset, menuRadius);
 
                 color = mix(mix(menuBackground, menuOutlineColor, smoothstep(-.5, .5, lineDistance)), vec4(0), smoothstep(lineWidth - .5, lineWidth + .5, lineDistance));
                 color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
@@ -382,13 +383,13 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             uniform float extra;
             out vec4 color;
 
-            float roundBoxDist(vec2 uv, vec2 center, vec2 size, float radius) {
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
                 vec2 vec = abs(uv - center) - .5 * size + radius;
                 return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
             }
 
             void main() {
-                float distance = roundBoxDist(uv, menuCenter, menuSize - 2. * padding, menuRadius - padding);
+                float distance = roundBoxDist(uv, menuSize - 2. * padding, menuCenter, menuRadius - padding);
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
                 float pos = clamp(distance / padding, 0., 1.);
                 color = texture(content, (uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0))) / contentSize) * (distance > 0. ? sqrt(1. - pos * pos) : 1.);
@@ -448,8 +449,8 @@ Menus.Title = class Title extends Menus.Widget {
         this.#title = title;
     }
 
-    wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(layout.title = this.translations.translate(this.title)).right;
-    height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title, layout.width - this.style.titlePadding.xTotal)).length;
+    wish = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(layout.title = this.translations.translate(this.title)).right;
+    layout = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title, layout.width - this.style.titlePadding.xTotal)).length;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
@@ -480,12 +481,21 @@ Menus.Tile = class Tile extends Menus.Widget {
         this.description = description;
     }
 
-    wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(layout.name = this.translations.translate(this.name)).right, this.style.descriptionFont.fine(layout.description = this.translations.translate(this.description)).right);
-    height = layout => layout.height = this.style.tilePadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name, layout.width - this.style.tilePadding.xTotal)).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description, layout.width - this.style.tilePadding.xTotal)).length;
+    wish = layout => {
+        layout.componentLayouts = this.#components.map(component => {
+            let componentLayout = {};
+            component.layout(componentLayout);
+            componentLayout.size = new Vec2(componentLayout.width, componentLayout.height);
+            return componentLayout;
+        });
+        layout.wishWidth = this.style.tilePadding.xTotal + Math.max(this.style.nameFont.fine(layout.name = this.translations.translate(this.name)).right, this.style.descriptionFont.fine(layout.description = this.translations.translate(this.description)).right) + (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0));
+    };
+    layout = layout => layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name, layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description, layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+        let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
         pos.x += this.style.tilePadding.left;
-        pos.y -= this.style.tilePadding.top;
+        pos.y -= this.style.tilePadding.top + .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal);
         layout.nameLines.forEach(line => {
             pos.y -= this.style.nameFont.ascent;
             this.style.nameFont.draw(target, line, pos).exec();
@@ -496,6 +506,11 @@ Menus.Tile = class Tile extends Menus.Widget {
             this.style.descriptionFont.draw(target, line, pos).exec();
             pos.y -= this.style.descriptionFont.descent;
         });
+        for (let i = 0; i < this.#components.length; i++) {
+            componentPos.x += this.style.tileComponentSpacing;
+            this.#components[i].render(target, componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), layout.componentLayouts[i]);
+            componentPos.x += layout.componentLayouts[i].width;
+        }
     };
 
     #name;
@@ -513,6 +528,8 @@ Menus.Tile = class Tile extends Menus.Widget {
     set description(description) {
         this.#description = `${description || ""}`;
     }
+
+    #components = [];
 };
 
 Menus.TabBar = class TabBar extends Menus.Widget {
@@ -535,12 +552,12 @@ Menus.TabBar = class TabBar extends Menus.Widget {
     #highlightPos = new Anim({left: 0, right: 0}, 20000);
 
     #program;
-    wishWidth = layout => {
+    wish = layout => {
         layout.gaps = !!this.#tabs.length * (this.#tabs.length - 1) * this.style.tabBarGap;
         layout.widths = this.#tabs.map(tab => this.style.tabBarPadding.xTotal + this.style.nameFont.fine(this.translations.translate(tab.name)).right);
         layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps);
     };
-    height = layout => {
+    layout = layout => {
         this.scroll = Math.min(this.scroll, Math.max(0, layout.wishWidth - layout.width));
         layout.height = this.style.tabBarSpacing.yTotal + this.style.tabBarPadding.yTotal + this.style.nameFont.height;
     };
@@ -568,13 +585,13 @@ Menus.TabBar = class TabBar extends Menus.Widget {
             uniform vec4 highlightColor;
             out vec4 color;
 
-            float roundBoxDist(vec2 uv, vec2 center, vec2 size, float radius) {
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
                 vec2 vec = abs(uv - center) - .5 * size + radius;
                 return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
             }
 
             void main() {
-                float distance = roundBoxDist(uv, highlightCenter, highlightSize - 1.5, highlightRadius);
+                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
                 color = highlightColor * smoothstep(1., 0., distance);
             }
             `),
@@ -657,7 +674,7 @@ Menus.Spacer = class Spacer extends Menus.Widget {
     }
 
     #program;
-    height = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
+    layout = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
     render = (target, pos, layout) => {
         this.#program = this.storage.use("SpacerProgram", () => [
             this.renderer.program(`#version 300 es
