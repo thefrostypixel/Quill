@@ -194,9 +194,27 @@ globalThis.Menus = class Menus {
 };
 
 Menus.Widget = class Widget {
+    constructor(owner, remover) {
+        this.#owner = owner;
+        this.#remover = remover;
+    }
+
+    #owner;
+    get owner() {
+        return this.#owner;
+    }
+
+    #remover;
+    remove = () => {
+        if (this.#owner) {
+            this.#remover();
+            this.#owner = undefined;
+        }
+    };
+
     #menus;
     get menus() {
-        return this.#menus ??= this.owner instanceof Menus ? this.owner : this.owner.menus;
+        return this.#menus ??= this.#owner instanceof Menus ? this.#owner : this.#owner.menus;
     }
 
     get style() {
@@ -241,20 +259,6 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             this.#contentTexture?.delete();
         });
     }
-
-    #owner;
-    get owner() {
-        return this.#owner;
-    }
-
-    #remover;
-    remove = () => {
-        if (this.owner) {
-            this.#owner = undefined;
-            this.#remover();
-            this.#contentTexture?.delete();
-        }
-    };
 
     #visible = false;
     get visible() {
@@ -444,19 +448,6 @@ Menus.Title = class Title extends Menus.Widget {
         this.#title = title;
     }
 
-    #owner;
-    get owner() {
-        return this.#owner;
-    }
-
-    #remover;
-    remove = () => {
-        if (this.owner) {
-            this.#owner = undefined;
-            this.#remover();
-        }
-    };
-
     wishWidth = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(layout.title = this.translations.translate(this.title)).right;
     height = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title, layout.width - this.style.titlePadding.xTotal)).length;
     render = (target, pos, layout) => {
@@ -481,25 +472,13 @@ Menus.Title = class Title extends Menus.Widget {
 
 Menus.Tile = class Tile extends Menus.Widget {
     constructor(owner, remover, name, description) {
-        super();
-        this.#owner = owner;
-        this.#remover = remover;
+        super(owner, () => {
+            remover();
+            this.#components.forEach(c => c.remove());
+        });
         this.name = name;
         this.description = description;
     }
-
-    #owner;
-    get owner() {
-        return this.#owner;
-    }
-
-    #remover;
-    remove = () => {
-        if (this.owner) {
-            this.#owner = undefined;
-            this.#remover();
-        }
-    };
 
     wishWidth = layout => layout.wishWidth = this.style.tilePadding.left + Math.max(this.style.nameFont.fine(layout.name = this.translations.translate(this.name)).right, this.style.descriptionFont.fine(layout.description = this.translations.translate(this.description)).right);
     height = layout => layout.height = this.style.tilePadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name, layout.width - this.style.tilePadding.xTotal)).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description, layout.width - this.style.tilePadding.xTotal)).length;
@@ -538,25 +517,10 @@ Menus.Tile = class Tile extends Menus.Widget {
 
 Menus.TabBar = class TabBar extends Menus.Widget {
     constructor(owner, remover, tabs, selected) {
-        super();
-        this.#owner = owner;
-        this.#remover = remover;
+        super(owner, remover);
         this.tabs = tabs;
         this.selected = selected;
     }
-
-    #owner;
-    get owner() {
-        return this.#owner;
-    }
-
-    #remover;
-    remove = () => {
-        if (this.owner) {
-            this.#owner = undefined;
-            this.#remover();
-        }
-    };
 
     #scroll = 0;
     get scroll() {
@@ -689,23 +653,8 @@ Menus.TabBar = class TabBar extends Menus.Widget {
 
 Menus.Spacer = class Spacer extends Menus.Widget {
     constructor(owner, remover) {
-        super();
-        this.#owner = owner;
-        this.#remover = remover;
+        super(owner, remover);
     }
-
-    #owner;
-    get owner() {
-        return this.#owner;
-    }
-
-    #remover;
-    remove = () => {
-        if (this.owner) {
-            this.#owner = undefined;
-            this.#remover();
-        }
-    };
 
     #program;
     height = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
