@@ -36,6 +36,8 @@ let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => backgroun
 let style = {
     menuSpacing: new Padding2(20),
     menuPadding: new Padding2(24),
+    menuWidth: 350,
+    menuHeightMax: Infinity,
     menuRadius: 40,
     menuBackground: Color.okLab({L: .25}, .5),
     menuBlur: 10,
@@ -45,14 +47,12 @@ let style = {
     menuShadowBlur: 40,
     menuShadowOffset: new Vec2(0, -10),
     menuAccel: 20000,
-
-    menuWidthMin: 300,
-    menuWidthMax: 400,
-    menuHeightMax: Infinity,
-    visibilityAccel: 20000,
-    stateAccel: 20,
+    menuVisibilityAccel: 500,
 
     lineWidth: 2,
+
+    paneAccel: 500,
+    paneAnimHeightScale: 50,
 
     titlePadding: new Padding2(16, 16, 4, 8),
 
@@ -68,7 +68,7 @@ let style = {
     toggleThumbShadow: Color.okLab({}, .15),
     toggleAccel: 500,
 
-    tabBarSpacing: new Padding2(0, 8),
+    tabBarSpacing: new Padding2(8),
     tabBarPadding: new Padding2(32, 8),
     tabBarGap: -8,
     tabBarHighlightRadius: 16,
@@ -255,6 +255,8 @@ Menus.ElementHolder = class ElementHolder extends Menus.Widget {
         return element;
     };
 
+    paneHolder = selected => this.#addElement(Menus.PaneHolder, selected);
+    pane = () => this.#addElement(Menus.Pane);
     title = title => this.#addElement(Menus.Title, title);
     tile = (name, description) => this.#addElement(Menus.Tile, name, description);
     tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(Menus.TabBar, tabs, selected);
@@ -280,7 +282,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             this.elements.forEach(e => e.endAnims?.());
         }
     }
-    #visibleAnim = new Anim(this.#visible, 200);
+    #visibleAnim = new Anim(this.#visible, this.style.menuVisibilityAccel);
     get visibleAnim() {
         return this.#visibleAnim.value;
     }
@@ -297,15 +299,12 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
     }
 
     layout = () => {
-        let layouts = Array.from(this.elements, () => ({wishWidth: 0}));
-        this.elements.forEach((e, i) => e?.wish?.(layouts[i]));
-        let width = Math.ceil(Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidthMax, Math.max(this.style.menuWidthMin, Math.max(...layouts.map(layout => layout.wishWidth)) + this.style.menuPadding.xTotal)));
-        this.elements.forEach((e, i) => {
-            layouts[i].width = width - this.style.menuPadding.xTotal;
-            layouts[i].height = 0;
-            e?.layout?.(layouts[i]);
-            layouts[i].height = Math.ceil(layouts[i].height);
-            layouts[i].size = new Vec2(layouts[i].width, layouts[i].height);
+        let width = Math.ceil(Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidth));
+        let layouts = this.elements.map(e => {
+            let layout = {width: width - this.style.menuPadding.xTotal, height: 0};
+            e.layout?.(layout);
+            layout.size = new Vec2(layout.width, layout.height = Math.ceil(layout.height));
+            return layout;
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
         let height = Math.min(this.renderer.height - this.style.menuSpacing.yTotal, contentHeight);
@@ -322,6 +321,11 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         let {box, layouts} = this.layout();
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
         (this.#contentTexture ??= this.renderer.texture(box.size.add(2 * extra, 2 * extra))).clear(box.size.add(2 * extra, 2 * extra));
+        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
+        for (let i = 0; i < this.elements.length; i++) {
+            this.elements[i].render(this.#contentTexture, pos.copy, layouts[i]);
+            pos.y -= layouts[i].height;
+        }
         this.#backgroundProgram = this.storage.use("MenuBackgroundProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -365,6 +369,25 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             `),
             program => program.delete(),
         ]);
+        renderer.draw({
+            target,
+            program: this.#backgroundProgram,
+            mesh: renderer.boxMesh2D,
+            uniforms: {
+                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
+                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
+                menuSize: box.size,
+                menuCenter: box.center,
+                menuRadius: this.style.menuRadius,
+                menuBackground: this.style.menuBackground,
+                menuOutlineColor: this.style.menuOutlineColor,
+                menuShadowColor: this.style.menuShadowColor,
+                menuShadowBlur: this.style.menuShadowBlur,
+                menuShadowOffset: this.style.menuShadowOffset,
+                lineWidth: this.style.lineWidth,
+            },
+            blending: Renderer.Blending.overlay,
+        }).exec();
         this.#contentProgram = this.storage.use("MenuContentProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -407,30 +430,6 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             `),
             program => program.delete(),
         ]);
-        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
-        for (let i = 0; i < this.elements.length; i++) {
-            this.elements[i].render(this.#contentTexture, pos.copy, layouts[i]);
-            pos.y -= layouts[i].height;
-        }
-        renderer.draw({
-            target,
-            program: this.#backgroundProgram,
-            mesh: renderer.boxMesh2D,
-            uniforms: {
-                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
-                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
-                menuSize: box.size,
-                menuCenter: box.center,
-                menuRadius: this.style.menuRadius,
-                menuBackground: this.style.menuBackground,
-                menuOutlineColor: this.style.menuOutlineColor,
-                menuShadowColor: this.style.menuShadowColor,
-                menuShadowBlur: this.style.menuShadowBlur,
-                menuShadowOffset: this.style.menuShadowOffset,
-                lineWidth: this.style.lineWidth,
-            },
-            blending: Renderer.Blending.overlay,
-        }).exec();
         renderer.draw({
             target,
             program: this.#contentProgram,
@@ -452,14 +451,191 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
     };
 };
 
+Menus.PaneHolder = class PaneHolder extends Menus.Widget {
+    constructor(owner, remover, selected) {
+        super(owner, () => {
+            remover();
+            this.#panes.forEach(p => p.remove());
+        });
+        this.#visibilityAnim = new Anim({height: 0}, this.style.paneAccel);
+        this.#selected = selected;
+    }
+
+    #instantAnim = true;
+    #visibilityAnim;
+    partiallyVisible = id => !!this.#visibilityAnim.values[`pane${id}`];
+    endAnims = () => this.#visibilityAnim.skip();
+
+    #height = 0;
+    layout = layout => {
+        let height = 0;
+        let animHeight = 0;
+        let snapshot = this.#visibilityAnim.snapshot;
+        layout.paneLayouts = Object.fromEntries(Object.entries(this.#panes).map(([id, pane]) => {
+            let paneLayout = {width: layout.width, height: 0};
+            pane.layout?.(paneLayout);
+            if (this.#selected == id) {
+                height = paneLayout.height;
+            }
+            animHeight += paneLayout.height * snapshot[`pane${id}`].value;
+            return [id, paneLayout];
+        }));
+        if (this.#height != height) {
+            this.#visibilityAnim.targets.height = height / this.style.paneAnimHeightScale;
+            this.#visibilityAnim.values.height = animHeight / this.style.paneAnimHeightScale;
+            this.#height = height;
+        }
+        layout.height = Math.round(this.#visibilityAnim.values.height * this.style.paneAnimHeightScale);
+        Object.values(layout.paneLayouts).forEach(paneLayout => paneLayout.size = new Vec2(paneLayout.width, paneLayout.height = layout.height));
+    };
+    render = (target, pos, layout) => {
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.wishWidth, pos.y - layout.height)));
+        Object.entries(this.#panes).forEach(([id, pane]) => pane.render(target, pos.copy, layout.paneLayouts[id], this.#visibilityAnim.values[`pane${id}`]));
+        this.#instantAnim = false;
+    };
+
+    #panes = Object.create(null);
+    get panes() {
+        return Object.assign(Object.create(null), this.#panes);
+    }
+    pane = id => {
+        if (!this.#panes[id]) {
+            this.#visibilityAnim.axes[`pane${id}`] = this.#selected == id;
+            return this.#panes[id] = new Menus.Pane(this, () => {
+                delete this.#panes[id];
+                this.#visibilityAnim.axes[`pane${id}`] = undefined;
+            });
+        }
+        return this.#panes[id];
+    };
+
+    #selected;
+    get selected() {
+        return this.#selected;
+    }
+    set selected(selected) {
+        this.#visibilityAnim.to({[`pane${this.#selected}`]: 0, [`pane${this.#selected = selected || ""}`]: 1}).skip(this.#instantAnim);
+    }
+};
+
+Menus.Pane = class Pane extends Menus.ElementHolder {
+    constructor(owner, remover) {
+        super(owner, () => {
+            remover();
+            this.elements.forEach(e => e.remove());
+            this.#contentTexture?.delete();
+        });
+        if (!(this.owner instanceof Menus.PaneHolder)) {
+            this.#visibilityAnim = new Anim({opacity: this.#visible, height: 0}, this.style.paneAccel);
+        }
+    }
+
+    #height = 0;
+    layout = layout => {
+        layout.elementLayouts = this.elements.map(element => {
+            let elementLayout = {width: layout.width, height: 0};
+            element.wish?.(elementLayout);
+            element.layout?.(elementLayout);
+            elementLayout.size = new Vec2(elementLayout.width, elementLayout.height);
+            return elementLayout;
+        });
+        let height = layout.elementLayouts.reduce((height, elementLayout) => height + elementLayout.height, 0);
+        if (this.#visibilityAnim && this.#height != height) {
+            if (this.#visible) {
+                this.#visibilityAnim.targets.height = height / this.style.paneAnimHeightScale;
+            }
+            this.#visibilityAnim.values.height = height * this.#visibilityAnim.values.opacity / this.style.paneAnimHeightScale;
+            this.#height = height;
+        }
+        layout.height = Math.round(this.#visibilityAnim ? this.#visibilityAnim.values.height * this.style.paneAnimHeightScale : height);
+    };
+
+    #contentTexture;
+    #program;
+    render = (target, pos, layout, opacity = this.#visibilityAnim?.values.opacity ?? 1) => {
+        if (opacity && layout.height) {
+            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, layout.height))).clear(new Vec2(target.width, layout.height));
+            // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
+            // drawDebugBox(this.#contentTexture, this.#contentTexture.box);
+            let elementPos = new Vec2(pos.x, layout.height);
+            for (let i = 0; i < this.elements.length; i++) {
+                this.elements[i].render(this.#contentTexture, elementPos.copy, layout.elementLayouts[i]);
+                elementPos.y -= layout.elementLayouts[i].height;
+            }
+            if (!this.#program) {
+                this.#program = this.renderer.program(`#version 300 es
+
+                in vec2 pos;
+                uniform mat3 dstTransform;
+                out vec2 uv;
+    
+                void main() {
+                    uv = pos;
+                    gl_Position = vec4((dstTransform * vec3(pos, 1)).xy, 0, 1);
+                }
+                `, `#version 300 es
+                precision mediump float;
+    
+                in vec2 uv;
+                uniform sampler2D textureSampler;
+                uniform float opacity;
+                out vec4 color;
+    
+                void main() {
+                    color = texture(textureSampler, uv) * opacity;
+                }
+                `);
+            }
+            this.renderer.draw({
+                target,
+                program: this.#program,
+                mesh: this.renderer.boxMesh2D,
+                uniforms: {
+                    textureSampler: this.#contentTexture,
+                    dstTransform: this.#contentTexture.box.move(0, pos.y - layout.height).vertexMat3(target),
+                    opacity,
+                },
+                blending: Renderer.Blending.add,
+            }).exec();
+        }
+        this.#instantAnim = false;
+    };
+
+    #visible = true;
+    get visible() {
+        if (this.#visibilityAnim) {
+            return this.#visible;
+        } else {
+            return this.owner.selected == Object.entries(this.owner.panes).find(([_, pane]) => pane == this)[0];
+        }
+    }
+    set visible(visible) {
+        if (this.#visibilityAnim) {
+            this.#visibilityAnim.to({opacity: this.#visible = !!visible, height: !!visible * this.#height / this.style.paneAnimHeightScale});
+        } else {
+            this.owner.selected = Object.entries(this.owner.panes).find(([_, pane]) => pane == this)[0];
+        }
+    }
+
+    #instantAnim = true;
+    #visibilityAnim;
+    get partiallyVisible() {
+        if (this.#visibilityAnim) {
+            return !!this.#visibilityAnim.values.opacity;
+        } else {
+            return this.owner.partiallyVisible(Object.entries(this.owner.panes).find(([_, pane]) => pane == this)[0]);
+        }
+    }
+    endAnims = () => this.#visibilityAnim?.skip();
+};
+
 Menus.Title = class Title extends Menus.Widget {
     constructor(owner, remover, title) {
         super(owner, remover);
         this.#title = title;
     }
 
-    wish = layout => layout.wishWidth = this.style.titlePadding.left + this.style.titleFont.fine(layout.title = this.translations.translate(this.title)).right;
-    layout = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title, layout.width - this.style.titlePadding.xTotal)).length;
+    layout = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title = this.translations.translate(this.title), layout.width - this.style.titlePadding.xTotal)).length;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
@@ -490,16 +666,15 @@ Menus.Tile = class Tile extends Menus.Widget {
         this.description = description;
     }
 
-    wish = layout => {
+    layout = layout => {
         layout.componentLayouts = this.#components.map(component => {
             let componentLayout = {};
             component.layout(componentLayout);
             componentLayout.size = new Vec2(componentLayout.width, componentLayout.height);
             return componentLayout;
         });
-        layout.wishWidth = this.style.tilePadding.xTotal + Math.max(this.style.nameFont.fine(layout.name = this.translations.translate(this.name)).right, this.style.descriptionFont.fine(layout.description = this.translations.translate(this.description)).right) + (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0));
+        layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     };
-    layout = layout => layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name, layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description, layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
@@ -562,6 +737,8 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
         layout.height = this.style.toggleSize.y;
     };
     render = (target, pos, layout) => {
+        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        // drawDebugBox(target, box);
         this.#program = this.storage.use("ToggleProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -604,8 +781,6 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
             `),
             program => program.delete(),
         ]);
-        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
-        // drawDebugBox(target, box);
         renderer.draw({
             target,
             program: this.#program,
@@ -657,53 +832,19 @@ Menus.TabBar = class TabBar extends Menus.Widget {
     #instantAnim = true;
     #highlightOpacity;
     #highlightPos;
+    endAnims = () => {
+        this.#highlightOpacity.skip();
+        this.#highlightPos.skip();
+    };
 
     #program;
-    wish = layout => {
+    layout = layout => {
         layout.gaps = !!this.#tabs.length * (this.#tabs.length - 1) * this.style.tabBarGap;
         layout.widths = this.#tabs.map(tab => this.style.tabBarPadding.xTotal + this.style.nameFont.fine(this.translations.translate(tab.name)).right);
-        layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps);
-    };
-    layout = layout => {
-        this.scroll = Math.min(this.scroll, Math.max(0, layout.wishWidth - layout.width));
+        this.scroll = Math.min(this.scroll, Math.max(0, (layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps)) - layout.width));
         layout.height = this.style.tabBarSpacing.yTotal + this.style.tabBarPadding.yTotal + this.style.nameFont.height;
     };
     render = (target, pos, layout) => {
-        this.#program = this.storage.use("TabBarProgram", () => [
-            this.renderer.program(`#version 300 es
-            precision mediump float;
-
-            in vec2 pos;
-            uniform mat3 posTransform;
-            uniform mat3 uvTransform;
-            out vec2 uv;
-
-            void main() {
-                uv = (uvTransform * vec3(pos, 1)).xy;
-                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
-            }
-            `, `#version 300 es
-            precision mediump float;
-
-            in vec2 uv;
-            uniform vec2 highlightSize;
-            uniform vec2 highlightCenter;
-            uniform float highlightRadius;
-            uniform vec4 highlightColor;
-            out vec4 color;
-
-            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
-                vec2 vec = abs(uv - center) - .5 * size + radius;
-                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
-            }
-
-            void main() {
-                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
-                color = highlightColor * smoothstep(1., 0., distance);
-            }
-            `),
-            program => program.delete(),
-        ]);
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         if (this.#tabs.length) {
             pos.x += this.style.tabBarSpacing.left - this.scroll;
@@ -740,6 +881,41 @@ Menus.TabBar = class TabBar extends Menus.Widget {
             });
             this.#highlightOpacity.to(selectedExists).skip(this.#instantAnim);
             let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y);
+            this.#program = this.storage.use("TabBarProgram", () => [
+                this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 highlightSize;
+            uniform vec2 highlightCenter;
+            uniform float highlightRadius;
+            uniform vec4 highlightColor;
+            out vec4 color;
+
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                vec2 vec = abs(uv - center) - .5 * size + radius;
+                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+            }
+
+            void main() {
+                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
+                color = highlightColor * smoothstep(1., 0., distance);
+            }
+            `),
+                program => program.delete(),
+            ]);
             renderer.draw({
                 target,
                 program: this.#program,
@@ -783,6 +959,7 @@ Menus.Spacer = class Spacer extends Menus.Widget {
     #program;
     layout = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
     render = (target, pos, layout) => {
+        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         this.#program = this.storage.use("SpacerProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -805,7 +982,6 @@ Menus.Spacer = class Spacer extends Menus.Widget {
             `),
             program => program.delete(),
         ]);
-        // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         renderer.draw({
             target,
             program: this.#program,
@@ -826,17 +1002,28 @@ let translations = new Translations("/src/lang/index.json");
 let time = new Time();
 
 let menus = new Menus(style, renderer, translations, cache);
-let menu = menus.menu();
-let e1 = menu.title("inspector");
-menu.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
-let e2 = menu.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
-let e3 = menu.spacer();
-let e4 = menu.title("inspector.text");
-let e5 = menu.tile("text.family", "The font family.");
-let e6 = menu.tile("text.underline", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
-let e7 = menu.tile("And of course it’s also important to test line breaks in the names of tiles.");
-let e8 = menu.tile("text.italic");
-let e8c1 = e8.toggle(false);
+
+
+let inspector = menus.menu();
+// let inspectorTitle = inspector.title("inspector");
+// inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
+// let inspectorSpacer = inspector.spacer();
+let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
+let inspectorPaneHolder = inspector.paneHolder("text");
+
+let textPane = inspectorPaneHolder.pane("text");
+let textTitle = textPane.title("inspector.text");
+let textFamily = textPane.tile("text.family", "The font family.");
+let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
+let textItalic = textPane.tile("text.italic");
+let textItalicToggle = textItalic.toggle(false);
+let textUnderline = textPane.tile("text.underline");
+let textUnderlineToggle = textUnderline.toggle(true);
+let textUnderlinePane = textPane.pane();
+let textUnderlineWidth = textUnderlinePane.tile("line.width");
+
+let tablePane = inspectorPaneHolder.pane("table");
+let tableTitle = tablePane.title("inspector.table");
 
 // let controls = new Controls(time, settings.controls, document, false);
 time.repeat(() => {
@@ -848,8 +1035,11 @@ time.repeat(() => {
         renderer.drawCopy(background, target2D, centerImage(background, target2D)).exec();
     }
 
-    menu.render(target2D);
+    menus.render(target2D);
 
     renderer.show(target2D).delete();
     cache.sweep();
 });
+
+let toggleTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
+let toggleUnderline = () => textUnderlineToggle.toggled = textUnderlinePane.visible = !textUnderlineToggle.toggled;
