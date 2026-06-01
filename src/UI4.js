@@ -545,8 +545,8 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
                 this.#visibilityAnim.targets.height = height / this.style.paneAnimHeightScale;
             }
             this.#visibilityAnim.values.height = height * this.#visibilityAnim.values.opacity / this.style.paneAnimHeightScale;
-            this.#height = height;
         }
+        this.#height = height;
         layout.height = Math.round(this.#visibilityAnim ? this.#visibilityAnim.values.height * this.style.paneAnimHeightScale : height);
     };
 
@@ -554,10 +554,10 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
     #program;
     render = (target, pos, layout, opacity = this.#visibilityAnim?.values.opacity ?? 1) => {
         if (opacity && layout.height) {
-            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, layout.height))).clear(new Vec2(target.width, layout.height));
+            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, this.#height))).clear(new Vec2(target.width, this.#height));
             // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
             // drawDebugBox(this.#contentTexture, this.#contentTexture.box);
-            let elementPos = new Vec2(pos.x, layout.height);
+            let elementPos = new Vec2(pos.x, this.#height);
             for (let i = 0; i < this.elements.length; i++) {
                 this.elements[i].render(this.#contentTexture, elementPos.copy, layout.elementLayouts[i]);
                 elementPos.y -= layout.elementLayouts[i].height;
@@ -592,7 +592,7 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
                 mesh: this.renderer.boxMesh2D,
                 uniforms: {
                     textureSampler: this.#contentTexture,
-                    dstTransform: this.#contentTexture.box.move(0, pos.y - layout.height).vertexMat3(target),
+                    dstTransform: this.#contentTexture.box.move(0, pos.y - this.#height).vertexMat3(target),
                     opacity,
                 },
                 blending: Renderer.Blending.add,
@@ -1020,7 +1020,12 @@ let textItalicToggle = textItalic.toggle(false);
 let textUnderline = textPane.tile("text.underline");
 let textUnderlineToggle = textUnderline.toggle(true);
 let textUnderlinePane = textPane.pane();
+let textUnderlineStyle = textUnderlinePane.tile("line.style");
 let textUnderlineWidth = textUnderlinePane.tile("line.width");
+let textStrikethrough = textPane.tile("text.strikethrough");
+let textStrikethroughToggle = textStrikethrough.toggle(true);
+let textStrikethroughPane = textPane.pane();
+let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 
 let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
@@ -1043,3 +1048,4 @@ time.repeat(() => {
 
 let toggleTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
 let toggleUnderline = () => textUnderlineToggle.toggled = textUnderlinePane.visible = !textUnderlineToggle.toggled;
+let toggleStrikethrough = () => textStrikethroughToggle.toggled = textStrikethroughPane.visible = !textStrikethroughToggle.toggled;
