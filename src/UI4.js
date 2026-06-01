@@ -514,6 +514,11 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
         return this.#selected;
     }
     set selected(selected) {
+        Object.entries(this.#panes).forEach(([id, pane]) => {
+            if (!this.partiallyVisible(id)) {
+                pane.endAnims();
+            }
+        });
         this.#visibilityAnim.to({[`pane${this.#selected}`]: 0, [`pane${this.#selected = selected || ""}`]: 1}).skip(this.#instantAnim);
     }
 };
@@ -610,6 +615,9 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
         }
     }
     set visible(visible) {
+        if (!this.partiallyVisible) {
+            this.elements.forEach(e => e.endAnims?.());
+        }
         if (this.#visibilityAnim) {
             this.#visibilityAnim.to({opacity: this.#visible = !!visible, height: !!visible * this.#height / this.style.paneAnimHeightScale});
         } else {
@@ -626,7 +634,10 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
             return this.owner.partiallyVisible(Object.entries(this.owner.panes).find(([_, pane]) => pane == this)[0]);
         }
     }
-    endAnims = () => this.#visibilityAnim?.skip();
+    endAnims = () => {
+        this.#visibilityAnim?.skip();
+        this.elements.forEach(e => e.endAnims?.());
+    };
 };
 
 Menus.Title = class Title extends Menus.Widget {
