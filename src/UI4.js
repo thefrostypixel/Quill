@@ -68,6 +68,11 @@ let style = {
     toggleThumbShadow: Color.okLab({}, .15),
     toggleAccel: 500,
 
+    checkmarkSize: new Vec2(28, 28),
+    checkmarkAccel: 200,
+    checkmarkLineWidth: 3,
+    checkmarkColor: Color.okLab({L: .7, a: -.06, b: -.15}),
+
     tabBarSpacing: new Padding2(8),
     tabBarPadding: new Padding2(32, 8),
     tabBarGap: -8,
@@ -100,12 +105,6 @@ let style = {
         color: Color.okLab({L: .8}),
         cache,
     }),
-
-
-    checkmarkAccel: 200,
-    buttonColorUnchecked: Color.okLab({L: .95}, .3),
-    buttonColorChecked: Color.okLab({L: .7, a: -.06, b: -.15}),
-    tabBarHighlight: Color.okLab({L: .95}, .25),
 };
 
 let debugProgram;
@@ -730,6 +729,11 @@ Menus.Tile = class Tile extends Menus.Widget {
         this.#components.push(component);
         return component;
     };
+    checkmark = (choose, id) => {
+        let component = new Menus.Tile.Checkmark(this, () => this.#components.splice(this.#components.indexOf(component), 1), choose, id);
+        this.#components.push(component);
+        return component;
+    };
 };
 
 Menus.Tile.Toggle = class Toggle extends Menus.Widget {
@@ -792,7 +796,7 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
             `),
             program => program.delete(),
         ]);
-        renderer.draw({
+        this.renderer.draw({
             target,
             program: this.#program,
             mesh: renderer.boxMesh2D,
@@ -821,6 +825,124 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
         this.#toggleState.to(this.#toggled = !!toggled).skip(this.#instantAnim);
     }
     toggle = () => this.toggled = !this.toggled;
+};
+
+Menus.Tile.Checkmark = class Checkmark extends Menus.Widget {
+    constructor(owner, remover, choose, id) {
+        super(owner, remover);
+        (this.#choose = choose).checkmarks[this.#id = id] = this;
+        this.#toggleState = new Anim(this.chosen, this.style.checkmarkAccel);
+    }
+
+    #instantAnim = true;
+    #toggleState;
+
+    #program;
+    layout = layout => {
+        layout.width = this.style.checkmarkSize.x;
+        layout.height = this.style.checkmarkSize.y;
+    };
+    render = (target, pos, layout) => {
+        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        // drawDebugBox(target, box);
+        this.#program = this.storage.use("CheckmarkProgram", () => [
+            this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 p;
+            uniform vec2 v1;
+            uniform vec2 v2;
+            uniform float checkmarkLineWidth;
+            uniform vec4 checkmarkColor;
+            out vec4 color;
+
+            float lineDist(vec2 uv, vec2 p, vec2 v) {
+                return length(uv - p - v * clamp(dot(uv - p, v) / dot(v, v), 0., 1.));
+            }
+
+            void main() {
+                float d1 = lineDist(uv, p, v1);
+                float d2 = lineDist(uv, p + v1, v2);
+                float d = min(d1, d2);
+                color = checkmarkColor * smoothstep(checkmarkLineWidth, 0., d);
+            }
+            `),
+            program => program.delete(),
+        ]);
+        let v1 = new Vec2(7 / 28 * box.width, -9 / 28 * box.height);
+        let v2 = new Vec2(15 / 28 * box.width, 18 / 28 * box.height);
+        this.renderer.draw({
+            target,
+            program: this.#program,
+            mesh: renderer.boxMesh2D,
+            uniforms: {
+                posTransform: box.vertexMat3(target),
+                uvTransform: box.transformMat3(),
+                p : box.min.add(2.5 / 28 * box.width, 14 / 28 * box.height),
+                v1: v1.scale(Math.min(1, this.#toggleState.value * (1 + v2.length / v1.length))),
+                v2: v2.scale(Math.max(0, (this.#toggleState.value * (v1.length + v2.length) - v1.length) / v2.length)),
+                checkmarkLineWidth: this.style.checkmarkLineWidth * this.#toggleState.value,
+                checkmarkColor: this.style.checkmarkColor,
+            },
+            blending: Renderer.Blending.overlay,
+        }).exec();
+        this.#instantAnim = false;
+    };
+
+    #id;
+    get id() {
+        return this.#id;
+    }
+
+    #choose;
+    get choose() {
+        return this.#choose;
+    }
+
+    get chosen() {
+        return this.choose.chosen == this.id;
+    }
+    set chosen(chosen) {
+        if (this.chosen == !chosen) {
+            this.choose.chosen = chosen ? this.id : "";
+        }
+    }
+
+    update = () => this.#toggleState.to(this.chosen).skip(this.#instantAnim);
+};
+
+Menus.Choose = class Choose {
+    constructor(chosen = "") {
+        this.#chosen = chosen;
+    }
+
+    #chosen;
+    get chosen() {
+        return this.#chosen;
+    }
+    set chosen(chosen) {
+        let previous = this.checkmarks[this.#chosen];
+        let current = this.checkmarks[this.#chosen = `${chosen ?? ""}`];
+        if (previous != current) {
+            previous?.update();
+            current?.update();
+        }
+    }
+
+    checkmarks = Object.create(null);
 };
 
 Menus.TabBar = class TabBar extends Menus.Widget {
@@ -1037,6 +1159,14 @@ let textStrikethrough = textPane.tile("text.strikethrough");
 let textStrikethroughToggle = textStrikethrough.toggle(true);
 let textStrikethroughPane = textPane.pane();
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
+let textBaselineTitle = textPane.title("text.baseline");
+let textBaselineChoose = new Menus.Choose("base");
+let textBaselineBase = textPane.tile("text.baseline.base");
+let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base");
+let textBaselineSup = textPane.tile("text.baseline.sup");
+let textBaselineSupCheckmark = textBaselineSup.checkmark(textBaselineChoose, "sup");
+let textBaselineSub = textPane.tile("text.baseline.sub");
+let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "sub");
 
 let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
@@ -1060,3 +1190,4 @@ time.repeat(() => {
 let toggleTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
 let toggleUnderline = () => textUnderlineToggle.toggled = textUnderlinePane.visible = !textUnderlineToggle.toggled;
 let toggleStrikethrough = () => textStrikethroughToggle.toggled = textStrikethroughPane.visible = !textStrikethroughToggle.toggled;
+let advanceBaseline = () => textBaselineChoose.chosen = textBaselineChoose.chosen == "base" ? "sup" : textBaselineChoose.chosen == "sup" ? "sub" : "base";
