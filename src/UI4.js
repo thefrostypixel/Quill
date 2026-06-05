@@ -33,6 +33,8 @@ let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => backgroun
 
 // menuRadius = buttonRadius + padding
 // buttonRadius + buttonPadding + .5 * textFont.size
+// TODO Resolution scale: devicePixelRatio
+// TODO Font scale: parseFloat(window.getComputedStyle(document.documentElement).fontSize) / 16
 let style = {
     menuSpacing: new Padding2(20),
     menuPadding: new Padding2(24),
@@ -40,9 +42,8 @@ let style = {
     menuHeightMax: Infinity,
     menuRadius: 40,
     menuBackground: Color.okLab({L: .25}, .5),
-    menuBlur: 10,
+    menuBlur: 16,
     menuSaturation: 1.5,
-    menuOutlineColor: Color.okLab({L: .8}, .1),
     menuShadowColor: Color.okLab({}, .5),
     menuShadowBlur: 40,
     menuShadowOffset: new Vec2(0, -10),
@@ -267,6 +268,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         super(owner, () => {
             remover();
             this.elements.forEach(e => e.remove());
+            this.#blurTexture?.delete();
             this.#contentTexture?.delete();
         });
     }
@@ -313,27 +315,28 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         return {box, layouts};
     };
 
+    #blurTexture;
     #contentTexture;
-    #backgroundProgram;
-    #contentProgram;
+    #blurProgram;
+    #mainProgram;
     render = target => {
         let {box, layouts} = this.layout();
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
+        let blurBox = box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur);
+        (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
         (this.#contentTexture ??= this.renderer.texture(box.size.add(2 * extra, 2 * extra))).clear(box.size.add(2 * extra, 2 * extra));
         let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
         for (let i = 0; i < this.elements.length; i++) {
             this.elements[i].render(this.#contentTexture, pos.copy, layouts[i]);
             pos.y -= layouts[i].height;
         }
-        this.#backgroundProgram = this.storage.use("MenuBackgroundProgram", () => [
+        this.#blurProgram = this.storage.use("MenuBlurProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
-
             in vec2 pos;
             uniform mat3 posTransform;
             uniform mat3 uvTransform;
             out vec2 uv;
-
             void main() {
                 uv = (uvTransform * vec3(pos, 1)).xy;
                 gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
@@ -342,52 +345,34 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             precision mediump float;
 
             in vec2 uv;
-            uniform vec2 menuSize;
-            uniform vec2 menuCenter;
-            uniform float menuRadius;
-            uniform vec4 menuBackground;
-            uniform vec4 menuOutlineColor;
-            uniform vec4 menuShadowColor;
-            uniform float menuShadowBlur;
-            uniform vec2 menuShadowOffset;
-            uniform float lineWidth;
+            uniform sampler2D src;
+            uniform vec2 targetSize;
+            uniform float menuBlur;
             out vec4 color;
 
-            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
-                vec2 vec = abs(uv - center) - .5 * size + radius;
-                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
-            }
-
             void main() {
-                float lineDistance = roundBoxDist(uv, menuSize, menuCenter, menuRadius);
-                float shadowDistance = roundBoxDist(uv, menuSize - menuShadowBlur, menuCenter + menuShadowOffset, menuRadius);
-
-                color = mix(mix(menuBackground, menuOutlineColor, smoothstep(-.5, .5, lineDistance)), vec4(0), smoothstep(lineWidth - .5, lineWidth + .5, lineDistance));
-                color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
+                for (int i = -8; i <= 8; i++) {
+                    color += texture(src, (uv + vec2(i, 0) * .125 * menuBlur) / targetSize) * exp(-.03125 * float(i * i));
+                }
+                color *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
             }
             `),
             program => program.delete(),
         ]);
         renderer.draw({
-            target,
-            program: this.#backgroundProgram,
+            target: this.#blurTexture,
+            program: this.#blurProgram,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
-                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
-                menuSize: box.size,
-                menuCenter: box.center,
-                menuRadius: this.style.menuRadius,
-                menuBackground: this.style.menuBackground,
-                menuOutlineColor: this.style.menuOutlineColor,
-                menuShadowColor: this.style.menuShadowColor,
-                menuShadowBlur: this.style.menuShadowBlur,
-                menuShadowOffset: this.style.menuShadowOffset,
-                lineWidth: this.style.lineWidth,
+                posTransform: this.#blurTexture.box.vertexMat3(this.#blurTexture),
+                uvTransform: blurBox.transformMat3(),
+                src: target,
+                targetSize: target.size,
+                menuBlur: this.style.menuBlur,
             },
-            blending: Renderer.Blending.overlay,
+            blending: Renderer.Blending.overwrite,
         }).exec();
-        this.#contentProgram = this.storage.use("MenuContentProgram", () => [
+        this.#mainProgram = this.storage.use("MenuMainProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
 
@@ -404,12 +389,22 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             precision mediump float;
 
             in vec2 uv;
+            uniform sampler2D blur;
+            uniform vec2 blurMin;
+            uniform vec2 blurSize;
             uniform sampler2D content;
             uniform vec2 contentSize;
-            uniform vec2 menuMin;
+            uniform vec2 targetSize;
             uniform vec2 menuSize;
+            uniform vec2 menuMin;
             uniform vec2 menuCenter;
             uniform float menuRadius;
+            uniform vec4 menuBackground;
+            uniform float menuBlur;
+            uniform vec4 menuShadowColor;
+            uniform float menuShadowBlur;
+            uniform vec2 menuShadowOffset;
+            uniform float lineWidth;
             uniform float padding;
             uniform float extra;
             out vec4 color;
@@ -420,28 +415,54 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             }
 
             void main() {
-                float distance = roundBoxDist(uv, menuSize - 2. * padding, menuCenter, menuRadius - padding);
+                float distance = roundBoxDist(uv, menuSize, menuCenter, menuRadius);
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
-                float pos = clamp(distance / padding, 0., 1.);
-                color = texture(content, (uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0))) / contentSize) * (distance > 0. ? sqrt(1. - pos * pos) : 1.);
-                // color = vec4(mod(uv - menuMin + extra + (dot(normalDir, normalDir) > 1e-7 ? sign(uv - menuCenter) * normalize(normalDir) * padding * (asin(pos) - pos) : vec2(0)), 1.), 0., 1.);
+                vec2 normal = dot(normalDir, normalDir) > 1e-7 ? normalize(normalDir) * sign(uv - menuCenter) : vec2(0);
+                float contentOffset = clamp(distance / padding + 1., 0., 1.);
+                color = texture(content, (uv - menuMin + extra + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
+                vec4 background = vec4(0);
+                if (distance <= lineWidth + .5) {
+                    vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / menuRadius, 0., 1.)))) * normal * menuRadius - blurMin;
+                    for (int i = -8; i <= 8; i++) {
+                        background += texture(blur, (sampleCenter + vec2(0, i) * .125 * menuBlur) / blurSize) * exp(-.03125 * float(i * i));
+                    }
+                    background *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
+                    background = mix(background, vec4(menuBackground.rgb, 1), menuBackground.a);
+                }
+                color += (1. - color.a) * (.125 + .5 * (2.75 - background) * background) * smoothstep(-1., 0., distance) * smoothstep(lineWidth + .5, lineWidth - .5, distance);
+                if (distance < 0.) {
+                    color += (1. - color.a) * background;
+                } else {
+                    float shadowDistance = roundBoxDist(uv, menuSize - menuShadowBlur, menuCenter + menuShadowOffset, menuRadius);
+                    color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
+                }
             }
             `),
             program => program.delete(),
         ]);
         renderer.draw({
             target,
-            program: this.#contentProgram,
+            program: this.#mainProgram,
             mesh: renderer.boxMesh2D,
             uniforms: {
+                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
+                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
+                blur: this.#blurTexture,
+                blurMin: blurBox.min,
+                blurSize: blurBox.size,
                 content: this.#contentTexture,
                 contentSize: this.#contentTexture.size,
-                posTransform: box.vertexMat3(target),
-                uvTransform: box.transformMat3(),
-                menuMin: box.min,
+                targetSize: target.size,
                 menuSize: box.size,
+                menuMin: box.min,
                 menuCenter: box.center,
                 menuRadius: this.style.menuRadius,
+                menuBackground: this.style.menuBackground,
+                menuBlur: this.style.menuBlur,
+                menuShadowColor: this.style.menuShadowColor,
+                menuShadowBlur: this.style.menuShadowBlur,
+                menuShadowOffset: this.style.menuShadowOffset,
+                lineWidth: this.style.lineWidth,
                 padding: this.style.menuPadding.avg,
                 extra,
             },
