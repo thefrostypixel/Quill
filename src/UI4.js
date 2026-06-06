@@ -1,6 +1,6 @@
-let renderer = Renderer.create();
-document.body.appendChild(renderer);
-renderer.style = "position: fixed; left: 0; top: 0;";
+let renderer = new Renderer();
+document.body.appendChild(renderer.canvas);
+renderer.canvas.style = "position: fixed; left: 0; top: 0;";
 
 let cache = new Cache();
 
@@ -31,8 +31,6 @@ let fetchImage = url => renderer.asyncTexture(fetch(url));
 let background = undefined;
 let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => background = image);
 
-// menuRadius = buttonRadius + padding
-// buttonRadius + buttonPadding + .5 * textFont.size
 // TODO Resolution scale: devicePixelRatio
 // TODO Font scale: parseFloat(window.getComputedStyle(document.documentElement).fontSize) / 16
 let style = {
@@ -422,7 +420,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
                 color = texture(content, (uv - menuMin + extra + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
                 vec4 background = vec4(0);
                 if (distance <= lineWidth + .5) {
-                    vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / menuRadius, 0., 1.)))) * normal * menuRadius - blurMin;
+                    vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin;
                     for (int i = -8; i <= 8; i++) {
                         background += texture(blur, (sampleCenter + vec2(0, i) * .125 * menuBlur) / blurSize) * exp(-.03125 * float(i * i));
                     }
