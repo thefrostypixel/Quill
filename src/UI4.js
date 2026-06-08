@@ -80,8 +80,8 @@ let style = {
     tabBarHighlightOpacityAccel: 200,
     tabBarHighlightPosAccel: 20000,
 
-    spacerPadding: new Padding2(0, 8),
-    spacerColor: Color.okLab({L: .8}, .1),
+    dividerPadding: new Padding2(0, 24),
+    dividerColor: Color.okLab({L: .8}, .25),
 
     titleFont: new Font({
         size: 16,
@@ -258,7 +258,7 @@ Menus.ElementHolder = class ElementHolder extends Menus.Widget {
     title = title => this.#addElement(Menus.Title, title);
     tile = (name, description) => this.#addElement(Menus.Tile, name, description);
     tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(Menus.TabBar, tabs, selected);
-    spacer = () => this.#addElement(Menus.Spacer);
+    divider = () => this.#addElement(Menus.Divider);
 };
 
 Menus.Menu = class Menu extends Menus.ElementHolder {
@@ -1103,16 +1103,16 @@ Menus.TabBar = class TabBar extends Menus.Widget {
     }
 };
 
-Menus.Spacer = class Spacer extends Menus.Widget {
+Menus.Divider = class Divider extends Menus.Widget {
     constructor(owner, remover) {
         super(owner, remover);
     }
 
     #program;
-    layout = layout => layout.height = this.style.spacerPadding.yTotal + this.style.lineWidth;
+    layout = layout => layout.height = this.style.dividerPadding.yTotal + this.style.lineWidth;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
-        this.#program = this.storage.use("SpacerProgram", () => [
+        this.#program = this.storage.use("DividerProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
 
@@ -1125,11 +1125,11 @@ Menus.Spacer = class Spacer extends Menus.Widget {
             `, `#version 300 es
             precision mediump float;
 
-            uniform vec4 spacerColor;
+            uniform vec4 dividerColor;
             out vec4 color;
 
             void main() {
-                color = spacerColor;
+                color = dividerColor;
             }
             `),
             program => program.delete(),
@@ -1139,8 +1139,8 @@ Menus.Spacer = class Spacer extends Menus.Widget {
             program: this.#program,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: new Box2(0, target.width, pos.y -= this.style.spacerPadding.top, pos.y - this.style.lineWidth).vertexMat3(target),
-                spacerColor: this.style.spacerColor,
+                posTransform: new Box2(0, target.width, pos.y -= this.style.dividerPadding.top, pos.y - this.style.lineWidth).vertexMat3(target),
+                dividerColor: this.style.dividerColor,
             },
             blending: Renderer.Blending.overlay,
         }).exec();
@@ -1159,7 +1159,7 @@ let menus = new Menus(style, renderer, translations, cache);
 let inspector = menus.menu();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
-// let inspectorSpacer = inspector.spacer();
+// let inspectorDivider = inspector.divider();
 let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
 let inspectorPaneHolder = inspector.paneHolder("text");
 
