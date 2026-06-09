@@ -59,13 +59,13 @@ let style = {
     tileRadius: 16,
     tileComponentSpacing: 8,
 
-    toggleSize: new Vec2(48, 28),
-    toggleBackground0: /*Color.okLab({L: .95}, .3)*/Color.okLab({L: .55}),
-    toggleBackground1: Color.okLab({L: .7, a: -.06, b: -.15}),
-    toggleThumbRadius: 10,
-    toggleThumbColor: Color.okLab({L: .9}),
-    toggleThumbShadow: Color.okLab({}, .15),
-    toggleAccel: 500,
+    switchSize: new Vec2(48, 28),
+    switchBackground0: /*Color.okLab({L: .95}, .3)*/Color.okLab({L: .55}),
+    switchBackground1: Color.okLab({L: .7, a: -.06, b: -.15}),
+    switchThumbRadius: 10,
+    switchThumbColor: Color.okLab({L: .9}),
+    switchThumbShadow: Color.okLab({}, .15),
+    switchAccel: 500,
 
     checkmarkSize: new Vec2(28, 28),
     checkmarkAccel: 200,
@@ -743,8 +743,8 @@ Menus.Tile = class Tile extends Menus.Widget {
     }
 
     #components = [];
-    toggle = toggled => {
-        let component = new Menus.Tile.Toggle(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
+    switch = toggled => {
+        let component = new Menus.Tile.Switch(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
         this.#components.push(component);
         return component;
     };
@@ -755,10 +755,10 @@ Menus.Tile = class Tile extends Menus.Widget {
     };
 };
 
-Menus.Tile.Toggle = class Toggle extends Menus.Widget {
+Menus.Tile.Switch = class Switch extends Menus.Widget {
     constructor(owner, remover, toggled) {
         super(owner, remover);
-        this.#toggleState = new Anim(0, this.style.toggleAccel);
+        this.#toggleState = new Anim(0, this.style.switchAccel);
         this.toggled = toggled;
     }
 
@@ -767,13 +767,13 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
 
     #program;
     layout = layout => {
-        layout.width = this.style.toggleSize.x;
-        layout.height = this.style.toggleSize.y;
+        layout.width = this.style.switchSize.x;
+        layout.height = this.style.switchSize.y;
     };
     render = (target, pos, layout) => {
         let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
         // drawDebugBox(target, box);
-        this.#program = this.storage.use("ToggleProgram", () => [
+        this.#program = this.storage.use("SwitchProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
 
@@ -790,14 +790,14 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
             precision mediump float;
 
             in vec2 uv;
-            uniform vec2 toggleSize;
-            uniform vec2 toggleCenter;
-            uniform float toggleRadius;
-            uniform vec4 toggleBackground;
-            uniform vec2 toggleThumbCenter;
-            uniform float toggleThumbRadius;
-            uniform vec4 toggleThumbColor;
-            uniform vec4 toggleThumbShadow;
+            uniform vec2 switchSize;
+            uniform vec2 switchCenter;
+            uniform float switchRadius;
+            uniform vec4 switchBackground;
+            uniform vec2 switchThumbCenter;
+            uniform float switchThumbRadius;
+            uniform vec4 switchThumbColor;
+            uniform vec4 switchThumbShadow;
             out vec4 color;
 
             float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
@@ -806,11 +806,11 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
             }
 
             void main() {
-                float baseDist = roundBoxDist(uv, toggleSize - 1., toggleCenter, toggleRadius - .5);
-                float thumbDist = length(uv - toggleThumbCenter) - toggleThumbRadius - .5;
-                color = toggleThumbColor * smoothstep(1., 0., thumbDist);
-                color += (1. - color.a) * toggleThumbShadow * smoothstep(.5 * toggleSize.y - toggleThumbRadius, 0., thumbDist);
-                color += (1. - color.a) * toggleBackground * smoothstep(1., 0., baseDist);
+                float baseDist = roundBoxDist(uv, switchSize - 1., switchCenter, switchRadius - .5);
+                float thumbDist = length(uv - switchThumbCenter) - switchThumbRadius - .5;
+                color = switchThumbColor * smoothstep(1., 0., thumbDist);
+                color += (1. - color.a) * switchThumbShadow * smoothstep(.5 * switchSize.y - switchThumbRadius, 0., thumbDist);
+                color += (1. - color.a) * switchBackground * smoothstep(1., 0., baseDist);
             }
             `),
             program => program.delete(),
@@ -822,14 +822,14 @@ Menus.Tile.Toggle = class Toggle extends Menus.Widget {
             uniforms: {
                 posTransform: box.vertexMat3(target),
                 uvTransform: box.transformMat3(),
-                toggleSize: box.size,
-                toggleCenter: box.center,
-                toggleRadius: .5 * box.height,
-                toggleBackground: this.style.toggleBackground0.copy.mix(this.style.toggleBackground1, this.#toggleState.value),
-                toggleThumbCenter: new Vec2(box.xMin + .5 * box.ySize + (box.xSize - box.ySize) * this.#toggleState.value, box.yCenter),
-                toggleThumbRadius: this.style.toggleThumbRadius,
-                toggleThumbColor: this.style.toggleThumbColor,
-                toggleThumbShadow: this.style.toggleThumbShadow,
+                switchSize: box.size,
+                switchCenter: box.center,
+                switchRadius: .5 * box.height,
+                switchBackground: this.style.switchBackground0.copy.mix(this.style.switchBackground1, this.#toggleState.value),
+                switchThumbCenter: new Vec2(box.xMin + .5 * box.ySize + (box.xSize - box.ySize) * this.#toggleState.value, box.yCenter),
+                switchThumbRadius: this.style.switchThumbRadius,
+                switchThumbColor: this.style.switchThumbColor,
+                switchThumbShadow: this.style.switchThumbShadow,
             },
             blending: Renderer.Blending.overlay,
         }).exec();
@@ -1168,14 +1168,14 @@ let textTitle = textPane.title("inspector.text");
 let textFamily = textPane.tile("text.family", "The font family.");
 let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
 let textItalic = textPane.tile("text.italic");
-let textItalicToggle = textItalic.toggle(false);
+let textItalicSwitch = textItalic.switch(false);
 let textUnderline = textPane.tile("text.underline");
-let textUnderlineToggle = textUnderline.toggle(true);
+let textUnderlineSwitch = textUnderline.switch(true);
 let textUnderlinePane = textPane.pane();
 let textUnderlineStyle = textUnderlinePane.tile("line.style");
 let textUnderlineWidth = textUnderlinePane.tile("line.width");
 let textStrikethrough = textPane.tile("text.strikethrough");
-let textStrikethroughToggle = textStrikethrough.toggle(true);
+let textStrikethroughSwitch = textStrikethrough.switch(true);
 let textStrikethroughPane = textPane.pane();
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 let textBaselineTitle = textPane.title("text.baseline");
@@ -1206,7 +1206,7 @@ time.repeat(() => {
     cache.sweep();
 });
 
-let toggleTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
+let switchTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
 let toggleUnderline = () => textUnderlineToggle.toggled = textUnderlinePane.visible = !textUnderlineToggle.toggled;
 let toggleStrikethrough = () => textStrikethroughToggle.toggled = textStrikethroughPane.visible = !textStrikethroughToggle.toggled;
 let advanceBaseline = () => textBaselineChoose.chosen = textBaselineChoose.chosen == "base" ? "sup" : textBaselineChoose.chosen == "sup" ? "sub" : "base";
