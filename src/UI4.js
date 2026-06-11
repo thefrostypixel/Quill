@@ -195,10 +195,60 @@ globalThis.Menus = class Menus {
         return menu;
     };
 
-    render = target => {
-        this.#menus.forEach(menu => menu.render(target));
+    layout = targetSize => this.#menus.map(menu => {
+        let layout = new Menus.Layout(menu);
+        menu.layout(layout, targetSize);
+        return layout;
+    });
+
+    render = (target, layout) => {
+        layout.forEach(layout => layout.owner.render(target, layout));
         this.#ownCache?.sweep();
     };
+};
+
+Menus.Layout = class Layout {
+    constructor(owner, width, height) {
+        this.#owner = owner;
+        this.width = width;
+        this.height = height;
+    }
+
+    #owner;
+    get owner() {
+        return this.#owner;
+    }
+    set owner(owner) {
+        this.#owner = owner;
+    }
+
+    #width = 0;
+    get width() {
+        return this.#width;
+    }
+    set width(width) {
+        if (isFinite(width)) {
+            this.#width = +width;
+        }
+    }
+
+    #height = 0;
+    get height() {
+        return this.#height;
+    }
+    set height(height) {
+        if (isFinite(height)) {
+            this.#height = +height;
+        }
+    }
+
+    get size() {
+        return new Vec2(this.width, this.height);
+    }
+    set size(size) {
+        this.width = size?.x ?? size?.[0];
+        this.height = size?.y ?? size?.[1];
+    }
 };
 
 Menus.Widget = class Widget {
@@ -297,36 +347,37 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         this.#scroll = scroll;
     }
 
-    layout = () => {
-        let width = Math.ceil(Math.min(this.renderer.width - this.style.menuSpacing.xTotal, this.style.menuWidth));
+    layout = (layout, targetSize) => {
+        let width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
         let layouts = this.elements.map(e => {
-            let layout = {width: width - this.style.menuPadding.xTotal, height: 0};
+            let layout = new Menus.Layout(e, width - this.style.menuPadding.xTotal);
             e.layout?.(layout);
-            layout.size = new Vec2(layout.width, layout.height = Math.ceil(layout.height));
             return layout;
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
-        let height = Math.min(this.renderer.height - this.style.menuSpacing.yTotal, contentHeight);
+        let height = Math.min(targetSize.y - this.style.menuSpacing.yTotal, contentHeight);
         this.scroll = Math.min(this.scroll, contentHeight - height);
         let box = new Box2({width, height});
-        box.center = this.renderer.size.scale(.5).floor().add(.5 * width % 1, .5 * height % 1);
-        return {box, layouts};
+        box.center = targetSize.copy.scale(.5).floor().add(.5 * width % 1, .5 * height % 1);
+        layout.width = box.width;
+        layout.height = box.height;
+        layout.box = box;
+        layout.layouts = layouts;
     };
 
     #blurTexture;
     #contentTexture;
     #blurProgram;
     #mainProgram;
-    render = target => {
-        let {box, layouts} = this.layout();
+    render = (target, layout) => {
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
-        let blurBox = box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur);
+        let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur);
         (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
-        (this.#contentTexture ??= this.renderer.texture(box.size.add(2 * extra, 2 * extra))).clear(box.size.add(2 * extra, 2 * extra));
-        let pos = new Vec2(this.style.menuPadding.left + extra, box.height + extra - this.style.menuPadding.top + this.scroll);
+        (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra))).clear(layout.box.size.add(2 * extra, 2 * extra));
+        let pos = new Vec2(this.style.menuPadding.left + extra, layout.box.height + extra - this.style.menuPadding.top + this.scroll);
         for (let i = 0; i < this.elements.length; i++) {
-            this.elements[i].render(this.#contentTexture, pos.copy, layouts[i]);
-            pos.y -= layouts[i].height;
+            this.elements[i].render(this.#contentTexture, pos.copy, layout.layouts[i]);
+            pos.y -= layout.layouts[i].height;
         }
         this.#blurProgram = this.storage.use("MenuBlurProgram", () => [
             this.renderer.program(`#version 300 es
@@ -443,17 +494,17 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             program: this.#mainProgram,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).vertexMat3(target),
-                uvTransform: box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(box.copy.expand(this.style.lineWidth)).transformMat3(),
+                posTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).vertexMat3(target),
+                uvTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).transformMat3(),
                 blur: this.#blurTexture,
                 blurMin: blurBox.min,
                 blurSize: blurBox.size,
                 content: this.#contentTexture,
                 contentSize: this.#contentTexture.size,
                 targetSize: target.size,
-                menuSize: box.size,
-                menuMin: box.min,
-                menuCenter: box.center,
+                menuSize: layout.box.size,
+                menuMin: layout.box.min,
+                menuCenter: layout.box.center,
                 menuRadius: this.style.menuRadius,
                 menuBackground: this.style.menuBackground,
                 menuBlur: this.style.menuBlur,
@@ -490,7 +541,7 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
         let animHeight = 0;
         let snapshot = this.#visibilityAnim.snapshot;
         layout.paneLayouts = Object.fromEntries(Object.entries(this.#panes).map(([id, pane]) => {
-            let paneLayout = {width: layout.width, height: 0};
+            let paneLayout = new Menus.Layout(pane, layout.width);
             pane.layout?.(paneLayout);
             if (this.#selected == id) {
                 height = paneLayout.height;
@@ -556,10 +607,8 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
     #height = 0;
     layout = layout => {
         layout.elementLayouts = this.elements.map(element => {
-            let elementLayout = {width: layout.width, height: 0};
-            element.wish?.(elementLayout);
+            let elementLayout = new Menus.Layout(element, layout.width);
             element.layout?.(elementLayout);
-            elementLayout.size = new Vec2(elementLayout.width, elementLayout.height);
             return elementLayout;
         });
         let height = layout.elementLayouts.reduce((height, elementLayout) => height + elementLayout.height, 0);
@@ -697,9 +746,8 @@ Menus.Tile = class Tile extends Menus.Widget {
 
     layout = layout => {
         layout.componentLayouts = this.#components.map(component => {
-            let componentLayout = {};
-            component.layout(componentLayout);
-            componentLayout.size = new Vec2(componentLayout.width, componentLayout.height);
+            let componentLayout = new Menus.Layout(component);
+            component?.layout(componentLayout);
             return componentLayout;
         });
         layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
@@ -1200,7 +1248,8 @@ time.repeat(() => {
         renderer.drawCopy(background, target2D, centerImage(background, target2D)).exec();
     }
 
-    menus.render(target2D);
+    let layout = menus.layout(target2D.size);
+    menus.render(target2D, layout);
 
     renderer.show(target2D).delete();
     cache.sweep();
