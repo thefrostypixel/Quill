@@ -1,6 +1,6 @@
 let renderer = new Renderer();
 document.body.appendChild(renderer.canvas);
-renderer.canvas.style = "position: fixed; left: 0; top: 0;";
+renderer.canvas.style = "position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;";
 
 let cache = new Cache();
 
@@ -31,7 +31,6 @@ let fetchImage = url => renderer.asyncTexture(fetch(url));
 let background = undefined;
 let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => background = image);
 
-// TODO Resolution scale: devicePixelRatio
 // TODO Font scale: parseFloat(window.getComputedStyle(document.documentElement).fontSize) / 16
 let style = {
     menuSpacing: new Padding2(20),
@@ -551,10 +550,10 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     #blurProgram;
     #mainProgram;
     render = (target, layout) => {
-        let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur);
+        let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur).multOrigin(devicePixelRatio);
         (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
         let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
-        (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra))).clear(layout.box.size.add(2 * extra, 2 * extra));
+        (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio))).clear(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio));
 
         // this.triggers(layout).forEach(trigger => drawDebugBox(this.#contentTexture, trigger.box.copy.move(0, this.scroll)));
 
@@ -566,7 +565,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
             }
         }
         this.#highlightOpacity.to(!!this.#highlighted).skip(this.#instantAnim);
-        let box = new Box2(this.#highlightPos.values).move(0, this.scroll);
+        let box = new Box2(this.#highlightPos.values).move(0, this.scroll).multOrigin(devicePixelRatio);
         this.#highlightProgram = this.storage.use("MenuHighlightProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -611,7 +610,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
                 uvTransform: box.transformMat3(),
                 highlightSize: box.size,
                 highlightCenter: box.center,
-                highlightRadius: this.#highlightPos.values.radius,
+                highlightRadius: this.#highlightPos.values.radius * devicePixelRatio,
                 highlightColor: this.style.menuHighlightColor.copy.opacity(this.#highlightOpacity.value),
             },
             blending: Renderer.Blending.overlay,
@@ -738,26 +737,26 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
             program: this.#mainProgram,
             mesh: renderer.boxMesh2D,
             uniforms: {
-                posTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).vertexMat3(target),
-                uvTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).transformMat3(),
+                posTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).vertexMat3(target),
+                uvTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).transformMat3(),
                 blur: this.#blurTexture,
                 blurMin: blurBox.min,
                 blurSize: blurBox.size,
                 content: this.#contentTexture,
                 contentSize: this.#contentTexture.size,
                 targetSize: target.size,
-                menuSize: layout.box.size,
-                menuMin: layout.box.min,
-                menuCenter: layout.box.center,
-                menuRadius: this.style.menuRadius,
+                menuSize: layout.box.size.scale(devicePixelRatio),
+                menuMin: layout.box.min.scale(devicePixelRatio),
+                menuCenter: layout.box.center.scale(devicePixelRatio),
+                menuRadius: this.style.menuRadius * devicePixelRatio,
                 menuBackground: this.style.menuBackground,
-                menuBlur: this.style.menuBlur,
+                menuBlur: this.style.menuBlur * devicePixelRatio,
                 menuShadowColor: this.style.menuShadowColor,
-                menuShadowBlur: this.style.menuShadowBlur,
-                menuShadowOffset: this.style.menuShadowOffset,
-                lineWidth: this.style.lineWidth,
-                padding: this.style.menuPadding.avg,
-                extra,
+                menuShadowBlur: this.style.menuShadowBlur * devicePixelRatio,
+                menuShadowOffset: this.style.menuShadowOffset.copy.scale(devicePixelRatio),
+                lineWidth: this.style.lineWidth * devicePixelRatio,
+                padding: this.style.menuPadding.left * devicePixelRatio,
+                extra: extra * devicePixelRatio,
             },
             blending: Renderer.Blending.overlay,
         }).exec();
@@ -885,7 +884,7 @@ MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
     #program;
     render = (target, pos, layout, opacity = this.#visibilityAnim?.values.opacity ?? 1) => {
         if (opacity && layout.height) {
-            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, this.#height))).clear(new Vec2(target.width, this.#height));
+            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, this.#height).scale(devicePixelRatio))).clear(new Vec2(target.width, this.#height).scale(devicePixelRatio));
             // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
             // drawDebugBox(this.#contentTexture, this.#contentTexture.box);
             let elementPos = new Vec2(pos.x, this.#height);
@@ -893,37 +892,38 @@ MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
                 this.elements[i].render(this.#contentTexture, elementPos.copy, layout.elementLayouts[i]);
                 elementPos.y -= layout.elementLayouts[i].height;
             }
-            if (!this.#program) {
-                this.#program = this.renderer.program(`#version 300 es
-
+            this.#program = this.storage.use("PaneProgram", () => [
+                this.renderer.program(`#version 300 es
+                
                 in vec2 pos;
                 uniform mat3 dstTransform;
                 out vec2 uv;
-    
+
                 void main() {
                     uv = pos;
                     gl_Position = vec4((dstTransform * vec3(pos, 1)).xy, 0, 1);
                 }
                 `, `#version 300 es
                 precision mediump float;
-    
+
                 in vec2 uv;
                 uniform sampler2D textureSampler;
                 uniform float opacity;
                 out vec4 color;
-    
+
                 void main() {
                     color = texture(textureSampler, uv) * opacity;
                 }
-                `);
-            }
+                `),
+                program => program.delete(),
+            ]);
             this.renderer.draw({
                 target,
                 program: this.#program,
                 mesh: this.renderer.boxMesh2D,
                 uniforms: {
                     textureSampler: this.#contentTexture,
-                    dstTransform: this.#contentTexture.box.move(0, pos.y - this.#height).vertexMat3(target),
+                    dstTransform: this.#contentTexture.box.move(0, (pos.y - this.#height) * devicePixelRatio).vertexMat3(target),
                     opacity,
                 },
                 blending: Renderer.Blending.add,
@@ -980,7 +980,7 @@ MenuHolder.Title = class Title extends MenuHolder.Widget {
         pos.y -= this.style.titlePadding.top;
         layout.lines.forEach(line => {
             pos.y -= this.style.titleFont.ascent;
-            this.style.titleFont.draw(target, line, pos).exec();
+            this.style.titleFont.draw(target, line, pos, devicePixelRatio).exec();
             pos.y -= this.style.titleFont.descent;
         });
     };
@@ -1035,12 +1035,12 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
         pos.y -= this.style.tilePadding.top+ .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal + this.style.tileTextPadding.yTotal);
         layout.nameLines.forEach(line => {
             pos.y -= this.style.nameFont.ascent;
-            this.style.nameFont.draw(target, line, pos).exec();
+            this.style.nameFont.draw(target, line, pos, devicePixelRatio).exec();
             pos.y -= this.style.nameFont.descent;
         });
         layout.descriptionLines.forEach(line => {
             pos.y -= this.style.descriptionFont.ascent;
-            this.style.descriptionFont.draw(target, line, pos).exec();
+            this.style.descriptionFont.draw(target, line, pos, devicePixelRatio).exec();
             pos.y -= this.style.descriptionFont.descent;
         });
         for (let i = 0; i < this.#components.length; i++) {
@@ -1106,7 +1106,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
 
     #program;
     render = (target, pos, layout) => {
-        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)).multOrigin(devicePixelRatio);
         // drawDebugBox(target, box);
         this.#program = this.storage.use("SwitchProgram", () => [
             this.renderer.program(`#version 300 es
@@ -1162,7 +1162,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
                 switchRadius: .5 * box.height,
                 switchBackground: this.style.switchBackground0.copy.mix(this.style.switchBackground1, this.#toggleState.value),
                 switchThumbCenter: new Vec2(box.xMin + .5 * box.ySize + (box.xSize - box.ySize) * this.#toggleState.value, box.yCenter),
-                switchThumbRadius: this.style.switchThumbRadius,
+                switchThumbRadius: this.style.switchThumbRadius * devicePixelRatio,
                 switchThumbColor: this.style.switchThumbColor,
                 switchThumbShadow: this.style.switchThumbShadow,
             },
@@ -1208,7 +1208,7 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
 
     #program;
     render = (target, pos, layout) => {
-        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)).multOrigin(devicePixelRatio);
         // drawDebugBox(target, box);
         this.#program = this.storage.use("CheckmarkProgram", () => [
             this.renderer.program(`#version 300 es
@@ -1242,7 +1242,7 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
                 float d1 = lineDist(uv, p, v1);
                 float d2 = lineDist(uv, p + v1, v2);
                 float d = min(d1, d2);
-                color = checkmarkColor * smoothstep(checkmarkLineWidth, 0., d);
+                color = checkmarkColor * smoothstep(checkmarkLineWidth - .5, checkmarkLineWidth - 1.5, d);
             }
             `),
             program => program.delete(),
@@ -1259,7 +1259,7 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
                 p : box.min.add(2.5 / 28 * box.width, 14 / 28 * box.height),
                 v1: v1.scale(Math.min(1, this.#toggleState.value * (1 + v2.length / v1.length))),
                 v2: v2.scale(Math.max(0, (this.#toggleState.value * (v1.length + v2.length) - v1.length) / v2.length)),
-                checkmarkLineWidth: this.style.checkmarkLineWidth * this.#toggleState.value,
+                checkmarkLineWidth: this.style.checkmarkLineWidth * this.#toggleState.value * devicePixelRatio,
                 checkmarkColor: this.style.checkmarkColor,
             },
             blending: Renderer.Blending.overlay,
@@ -1405,43 +1405,43 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
                     this.#highlightPos.to({left: pos.x + this.scroll, right: pos.x + layout.widths[i] + this.scroll}).skip(this.#instantAnim || !this.#highlightOpacity.value);
                     selectedExists = true;
                 }
-                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(layout.paddings[i] + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
+                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(layout.paddings[i] + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent), devicePixelRatio).exec();
                 pos.x += layout.widths[i] + this.style.tabBarGap;
             });
             this.#highlightOpacity.to(selectedExists).skip(this.#instantAnim);
-            let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y);
+            let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y).multOrigin(devicePixelRatio);
             this.#program = this.storage.use("TabBarProgram", () => [
                 this.renderer.program(`#version 300 es
-            precision mediump float;
-
-            in vec2 pos;
-            uniform mat3 posTransform;
-            uniform mat3 uvTransform;
-            out vec2 uv;
-
-            void main() {
-                uv = (uvTransform * vec3(pos, 1)).xy;
-                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
-            }
-            `, `#version 300 es
-            precision mediump float;
-
-            in vec2 uv;
-            uniform vec2 highlightSize;
-            uniform vec2 highlightCenter;
-            uniform float highlightRadius;
-            uniform vec4 highlightColor;
-            out vec4 color;
-
-            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
-                vec2 vec = abs(uv - center) - .5 * size + radius;
-                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
-            }
-
-            void main() {
-                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
-                color = highlightColor * smoothstep(1., 0., distance);
-            }
+                precision mediump float;
+    
+                in vec2 pos;
+                uniform mat3 posTransform;
+                uniform mat3 uvTransform;
+                out vec2 uv;
+    
+                void main() {
+                    uv = (uvTransform * vec3(pos, 1)).xy;
+                    gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+                }
+                `, `#version 300 es
+                precision mediump float;
+    
+                in vec2 uv;
+                uniform vec2 highlightSize;
+                uniform vec2 highlightCenter;
+                uniform float highlightRadius;
+                uniform vec4 highlightColor;
+                out vec4 color;
+    
+                float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                    vec2 vec = abs(uv - center) - .5 * size + radius;
+                    return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+                }
+    
+                void main() {
+                    float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
+                    color = highlightColor * smoothstep(1., 0., distance);
+                }
             `),
                 program => program.delete(),
             ]);
@@ -1454,7 +1454,7 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
                     uvTransform: box.transformMat3(),
                     highlightSize: box.size,
                     highlightCenter: box.center,
-                    highlightRadius: this.style.tabBarHighlightRadius,
+                    highlightRadius: this.style.tabBarHighlightRadius * devicePixelRatio,
                     highlightColor: this.style.tabBarHighlightColor.opacity(this.#highlightOpacity.value),
                 },
                 blending: Renderer.Blending.overlay,
@@ -1571,8 +1571,8 @@ let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
 
 time.repeat(() => {
-    renderer.width = window.innerWidth;
-    renderer.height = window.innerHeight;
+    renderer.width = innerWidth * devicePixelRatio;
+    renderer.height = innerHeight * devicePixelRatio;
 
     let target2D = renderer.texture({width: renderer.width, height: renderer.height});
     if (background) {
