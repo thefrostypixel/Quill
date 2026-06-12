@@ -35,7 +35,7 @@ let backgroundPromise = fetchImage("/src/Wallpaper.jpg").then(image => backgroun
 // TODO Font scale: parseFloat(window.getComputedStyle(document.documentElement).fontSize) / 16
 let style = {
     menuSpacing: new Padding2(20),
-    menuPadding: new Padding2(24),
+    menuPadding: new Padding2(22),
     menuWidth: 350,
     menuHeightMax: Infinity,
     menuRadius: 40,
@@ -47,6 +47,9 @@ let style = {
     menuShadowOffset: new Vec2(0, -10),
     menuAccel: 20000,
     menuVisibilityAccel: 500,
+    menuHighlightColor: Color.okLab({L: .8}, .25),
+    menuHighlightOpacityAccel: 200,
+    menuHighlightPosAccel: 20000,
 
     lineWidth: 2,
 
@@ -55,8 +58,9 @@ let style = {
 
     titlePadding: new Padding2(16, 16, 4, 8),
 
-    tilePadding: new Padding2(8),
-    tileRadius: 16,
+    tilePadding: new Padding2(4),
+    tileRadius: 18,
+    tileTextPadding: new Padding2(8, 5),
     tileComponentSpacing: 8,
 
     switchSize: new Vec2(48, 28),
@@ -72,8 +76,8 @@ let style = {
     checkmarkLineWidth: 3,
     checkmarkColor: Color.okLab({L: .7, a: -.06, b: -.15}),
 
-    tabBarSpacing: new Padding2(8),
-    tabBarPadding: new Padding2(32, 8),
+    tabBarSpacing: new Padding2(2),
+    tabBarPadding: new Padding2(32, 7),
     tabBarGap: -8,
     tabBarHighlightRadius: 16,
     tabBarHighlightColor: Color.okLab({L: .8}, .25),
@@ -201,6 +205,15 @@ globalThis.Menus = class Menus {
         return layout;
     });
 
+    handle = (e, layout) => {
+        for (let menuLayout of layout.toReversed()) {
+            if (e.captured) {
+                return;
+            }
+            menuLayout.owner.handle(e, menuLayout);
+        }
+    };
+
     render = (target, layout) => {
         layout.forEach(layout => layout.owner.render(target, layout));
         this.#ownCache?.sweep();
@@ -249,6 +262,77 @@ Menus.Layout = class Layout {
         this.width = size?.x ?? size?.[0];
         this.height = size?.y ?? size?.[1];
     }
+
+    #layouts = [];
+    get layouts() {
+        return this.#layouts;
+    }
+    set layouts(layouts) {
+        this.#layouts = layouts || [];
+    }
+};
+
+Menus.Trigger = class Trigger {
+    static contains = (box, radius, e) => {
+        if (e instanceof Inputs.Event.Positioned) {
+            let x = Math.abs(e.pos.x - box.center.x) - .5 * box.size.x + radius;
+            let y = Math.abs(e.pos.y - box.center.y) - .5 * box.size.y + radius;
+            return new Vec2(Math.max(x, 0), Math.max(y, 0)).length + Math.min(Math.max(x, y), 0) <= radius;
+        }
+        return true;
+    };
+
+    constructor(handler) {
+        this.handler = handler;
+    }
+
+    #handler = () => {};
+    get handler() {
+        return this.#handler;
+    }
+    set handler(handler) {
+        this.#handler = handler || (() => {});
+    }
+
+    #box;
+    get box() {
+        return this.#box;
+    }
+    set box(box) {
+        this.#box = box;
+    }
+
+    #layout;
+    get layout() {
+        return this.#layout;
+    }
+    set layout(layout) {
+        this.#layout = layout;
+    }
+
+    #radius = 0;
+    get radius() {
+        return this.#radius;
+    }
+    set radius(radius) {
+        if (isFinite(radius)) {
+            this.#radius = radius;
+        }
+    }
+
+    set = (pos, layout, radius) => {
+        this.box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
+        this.layout = layout;
+        this.radius = radius;
+        return this;
+    };
+
+    contains = e => Trigger.contains(this.box, this.radius, e);
+    handle = e => {
+        if (this.contains(e)) {
+            this.handler(e, this.layout);
+        }
+    };
 };
 
 Menus.Widget = class Widget {
@@ -319,6 +403,9 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             this.#blurTexture?.delete();
             this.#contentTexture?.delete();
         });
+        this.#visibleAnim = new Anim(this.#visible, this.style.menuVisibilityAccel);
+        this.#highlightOpacity = new Anim(0, this.style.menuHighlightOpacityAccel);
+        this.#highlightPos = new Anim({left: 0, right: 0, top: 0, bottom: 0, radius: 0}, this.style.menuHighlightPosAccel);
     }
 
     #visible = false;
@@ -331,13 +418,24 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             this.elements.forEach(e => e.endAnims?.());
         }
     }
-    #visibleAnim = new Anim(this.#visible, this.style.menuVisibilityAccel);
+    #visibleAnim;
     get visibleAnim() {
         return this.#visibleAnim.value;
     }
     get partiallyVisible() {
         return !!this.#visibleAnim.value;
     }
+
+    #highlighted;
+    #highlightOpacity;
+    #highlightPos;
+
+    #instantAnim = true;
+    endAnims = () => {
+        this.#visibleAnim.skip();
+        this.#highlightOpacity.skip();
+        this.#highlightPos.skip();
+    };
 
     #scroll = 0;
     get scroll() {
@@ -356,29 +454,175 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
         let height = Math.min(targetSize.y - this.style.menuSpacing.yTotal, contentHeight);
-        this.scroll = Math.min(this.scroll, contentHeight - height);
         let box = new Box2({width, height});
         box.center = targetSize.copy.scale(.5).floor().add(.5 * width % 1, .5 * height % 1);
         layout.width = box.width;
         layout.height = box.height;
         layout.box = box;
         layout.layouts = layouts;
+        this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - height);
+    };
+
+    triggers = layout => {
+        let triggers = [];
+        let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
+        let pos = new Vec2(this.style.menuPadding.left + extra, layout.box.height + extra - this.style.menuPadding.top);
+        for (let i = 0; i < this.elements.length; i++) {
+            this.elements[i].triggers?.(triggers, pos.copy, layout.layouts[i]);
+            pos.y -= layout.layouts[i].height;
+        }
+        return triggers;
+    };
+
+    handle = (e, layout) => {
+        if (Menus.Trigger.contains(layout.box, this.style.menuRadius, e)) {
+            if (e instanceof Inputs.Event.Positioned) {
+                let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
+                let offset = layout.box.min.sub(extra, extra - this.scroll);
+                e.pos.sub(offset);
+                e.lastPos?.sub(offset);
+                e.startPos?.sub(offset);
+                for (let trigger of this.triggers(layout).toReversed()) {
+                    if (e.captured) {
+                        break;
+                    }
+                    trigger.handle(e, layout);
+                }
+                e.pos.add(offset);
+                e.lastPos?.add(offset);
+                e.startPos?.add(offset);
+                if (e instanceof Inputs.Event.Scroll) {
+                    if (!e.captured) {
+                        this.scroll = Math.min(Math.max(this.scroll - e.locked.y, 0), layout.overflow);
+                    }
+                } else {
+                    this.#highlighted = undefined;
+                }
+            } else {
+                if (this.#highlighted) {
+                    if (this.triggers(layout).includes(this.#highlighted)) {
+                        this.#highlighted.handle(e);
+                    } else {
+                        this.#highlighted = undefined;
+                    }
+                }
+                if (!e.captured && e instanceof Inputs.Event.Directional) {
+                    let triggers = this.triggers(layout);
+                    if (this.#highlighted) {
+                        /*let stuff = e.dir.y < 0 ? ["top", "bottom"] : e.dir.y > 0 ? ["bottom", "top"] : e.dir.x > 0 ? ["right", "left"] : ["left", "right"];
+                        stuff.push(-e.dir[e.axis], `${e.axis}Center`);
+                        triggers = triggers.filter(trigger => trigger != this.#highlighted && stuff[2] * trigger.box[stuff[0]] < stuff[2] * this.#highlighted.box[stuff[1]]);
+                        console.log(triggers);
+                        let limit = triggers.reduce((limit, trigger) => Math.max(limit, stuff[2] * trigger.box[stuff[1]]), -Infinity);
+                        console.log(limit);
+                        let closest = (triggers = triggers.filter(trigger => limit < stuff[2] * trigger.box[stuff[0]]))[0];
+                        console.log(triggers);
+                        for (let trigger of triggers) {
+                            if (Math.abs(trigger.box[stuff[3]] - this.#highlighted.box[stuff[3]]) < Math.abs(closest.box[stuff[3]] - this.#highlighted.box[stuff[3]])) {
+                                closest = trigger;
+                            }
+                        }*/
+                        let closest = (triggers = triggers.filter(trigger => trigger != this.#highlighted && e.dir[e.axis] * this.#highlighted.box[`${e.axis}Center`] < e.dir[e.axis] * trigger.box[`${e.axis}Center`]))[0];
+                        for (let trigger of triggers) {
+                            if (trigger.box.center.dist(this.#highlighted.box.center) < closest.box.center.dist(this.#highlighted.box.center)) {
+                                closest = trigger;
+                            }
+                        }
+                        this.#highlighted = closest || this.#highlighted;
+                        e.capture();
+                    } else {
+                        this.#highlighted = triggers[0];
+                    }
+                }
+            }
+            e.capture();
+        } else if (!e.captured) {
+            if (e instanceof Inputs.Event.Scroll) {
+                e.capture();
+            } else {
+                console.log("Outside menu.");
+            }
+        }
     };
 
     #blurTexture;
     #contentTexture;
+    #highlightProgram;
     #blurProgram;
     #mainProgram;
     render = (target, layout) => {
-        let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
         let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur);
         (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
+        let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
         (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra))).clear(layout.box.size.add(2 * extra, 2 * extra));
+
+        // this.triggers(layout).forEach(trigger => drawDebugBox(this.#contentTexture, trigger.box.copy.move(0, this.scroll)));
+
+        if (this.#highlighted) {
+            if (this.triggers(layout).includes(this.#highlighted)) {
+                this.#highlightPos.to({left: this.#highlighted.box.left, right: this.#highlighted.box.right, top: this.#highlighted.box.top, bottom: this.#highlighted.box.bottom, radius: this.#highlighted.radius}).skip(this.#instantAnim || !this.#highlightOpacity.value);
+            } else {
+                this.#highlighted = undefined;
+            }
+        }
+        this.#highlightOpacity.to(!!this.#highlighted).skip(this.#instantAnim);
+        let box = new Box2(this.#highlightPos.values).move(0, this.scroll);
+        this.#highlightProgram = this.storage.use("MenuHighlightProgram", () => [
+            this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 highlightSize;
+            uniform vec2 highlightCenter;
+            uniform float highlightRadius;
+            uniform vec4 highlightColor;
+            out vec4 color;
+
+            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                vec2 vec = abs(uv - center) - .5 * size + radius;
+                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+            }
+
+            void main() {
+                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
+                color = highlightColor * smoothstep(1., 0., distance);
+            }
+            `),
+            program => program.delete(),
+        ]);
+        renderer.draw({
+            target: this.#contentTexture,
+            program: this.#highlightProgram,
+            mesh: renderer.boxMesh2D,
+            uniforms: {
+                posTransform: box.vertexMat3(this.#contentTexture),
+                uvTransform: box.transformMat3(),
+                highlightSize: box.size,
+                highlightCenter: box.center,
+                highlightRadius: this.#highlightPos.values.radius,
+                highlightColor: this.style.menuHighlightColor.copy.opacity(this.#highlightOpacity.value),
+            },
+            blending: Renderer.Blending.overlay,
+        }).exec();
+
         let pos = new Vec2(this.style.menuPadding.left + extra, layout.box.height + extra - this.style.menuPadding.top + this.scroll);
         for (let i = 0; i < this.elements.length; i++) {
             this.elements[i].render(this.#contentTexture, pos.copy, layout.layouts[i]);
             pos.y -= layout.layouts[i].height;
         }
+
         this.#blurProgram = this.storage.use("MenuBlurProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
@@ -517,6 +761,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
             },
             blending: Renderer.Blending.overlay,
         }).exec();
+        this.#instantAnim = false;
     };
 };
 
@@ -557,9 +802,14 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
         layout.height = Math.round(this.#visibilityAnim.values.height * this.style.paneAnimHeightScale);
         Object.values(layout.paneLayouts).forEach(paneLayout => paneLayout.size = new Vec2(paneLayout.width, paneLayout.height = layout.height));
     };
+
+    triggers = (triggers, pos, layout) => {
+        this.#panes[this.#selected]?.triggers?.(triggers, pos, layout.paneLayouts[this.#selected]);
+    };
+
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.wishWidth, pos.y - layout.height)));
-        Object.entries(this.#panes).forEach(([id, pane]) => pane.render(target, pos.copy, layout.paneLayouts[id], this.#visibilityAnim.values[`pane${id}`]));
+        Object.entries(this.#panes).forEach(([id, pane]) => pane.render(target, pos, layout.paneLayouts[id], this.#visibilityAnim.values[`pane${id}`]));
         this.#instantAnim = false;
     };
 
@@ -620,6 +870,15 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
         }
         this.#height = height;
         layout.height = Math.round(this.#visibilityAnim ? this.#visibilityAnim.values.height * this.style.paneAnimHeightScale : height);
+    };
+
+    triggers = (triggers, pos, layout) => {
+        if (this.#visible) {
+            for (let i = 0; i < this.elements.length; i++) {
+                this.elements[i].triggers?.(triggers, pos.copy, layout.elementLayouts[i]);
+                pos.y -= layout.elementLayouts[i].height;
+            }
+        }
     };
 
     #contentTexture;
@@ -714,6 +973,7 @@ Menus.Title = class Title extends Menus.Widget {
     }
 
     layout = layout => layout.height = this.style.titlePadding.yTotal + this.style.titleFont.height * (layout.lines = this.style.titleFont.break(layout.title = this.translations.translate(this.title), layout.width - this.style.titlePadding.xTotal)).length;
+
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         pos.x += this.style.titlePadding.left;
@@ -750,13 +1010,29 @@ Menus.Tile = class Tile extends Menus.Widget {
             component?.layout(componentLayout);
             return componentLayout;
         });
-        layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
+        layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.tileTextPadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - this.style.tileTextPadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     };
+
+    // TODO Primary and secondary targets.
+    #trigger = new Menus.Trigger((e, layout) => {});
+    triggers = (triggers, pos, layout) => {
+        triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+        let componentTriggers = [];
+        let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
+        for (let i = 0; i < this.#components.length; i++) {
+            componentPos.x += this.style.tileComponentSpacing;
+            this.#components[i].triggers?.(componentTriggers, componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), layout.componentLayouts[i]);
+            componentPos.x += layout.componentLayouts[i].width;
+        }
+        componentTriggers.forEach(trigger => trigger.box.expand(this.style.tilePadding));
+        triggers.push(...componentTriggers)
+    };
+
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
-        pos.x += this.style.tilePadding.left;
-        pos.y -= this.style.tilePadding.top + .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal);
+        pos.x += this.style.tilePadding.left + this.style.tileTextPadding.left;
+        pos.y -= this.style.tilePadding.top+ .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal + this.style.tileTextPadding.yTotal);
         layout.nameLines.forEach(line => {
             pos.y -= this.style.nameFont.ascent;
             this.style.nameFont.draw(target, line, pos).exec();
@@ -813,11 +1089,22 @@ Menus.Tile.Switch = class Switch extends Menus.Widget {
     #instantAnim = true;
     #toggleState;
 
-    #program;
     layout = layout => {
         layout.width = this.style.switchSize.x;
         layout.height = this.style.switchSize.y;
     };
+
+    #trigger = new Menus.Trigger(e => {
+        if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
+            this.toggle();
+            e.capture();
+        }
+    });
+    triggers = (triggers, pos, layout) => {
+        triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+    };
+
+    #program;
     render = (target, pos, layout) => {
         let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
         // drawDebugBox(target, box);
@@ -904,11 +1191,22 @@ Menus.Tile.Checkmark = class Checkmark extends Menus.Widget {
     #instantAnim = true;
     #toggleState;
 
-    #program;
     layout = layout => {
         layout.width = this.style.checkmarkSize.x;
         layout.height = this.style.checkmarkSize.y;
     };
+
+    #trigger = new Menus.Trigger(e => {
+        if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
+            this.chosen = true;
+            e.capture();
+        }
+    });
+    triggers = (triggers, pos, layout) => {
+        triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+    };
+
+    #program;
     render = (target, pos, layout) => {
         let box = new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height));
         // drawDebugBox(target, box);
@@ -1037,47 +1335,78 @@ Menus.TabBar = class TabBar extends Menus.Widget {
         this.#highlightPos.skip();
     };
 
-    #program;
     layout = layout => {
         layout.gaps = !!this.#tabs.length * (this.#tabs.length - 1) * this.style.tabBarGap;
         layout.widths = this.#tabs.map(tab => this.style.tabBarPadding.xTotal + this.style.nameFont.fine(this.translations.translate(tab.name)).right);
-        this.scroll = Math.min(this.scroll, Math.max(0, (layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps)) - layout.width));
         layout.height = this.style.tabBarSpacing.yTotal + this.style.tabBarPadding.yTotal + this.style.nameFont.height;
+        this.scroll = Math.min(this.scroll, Math.max(layout.overflow = (layout.wishWidth = layout.widths.reduce((total, width) => total + width, this.style.tabBarSpacing.xTotal + layout.gaps)) - layout.width, 0));
+        layout.paddings = layout.widths.map(() => 0);
+        let remainder = -layout.overflow;
+        while (remainder > 1e-7) {
+            let smallest;
+            let smallestWidth = Infinity;
+            let nextSmallestWidth = Infinity;
+            layout.widths.forEach((width, i) => {
+                if (width + 1e-7 < smallestWidth) {
+                    nextSmallestWidth = smallestWidth;
+                    smallestWidth = width;
+                    smallest = [i];
+                } else if (width < smallestWidth + 1e-7) {
+                    smallest.push(i);
+                } else if (width < nextSmallestWidth) {
+                    nextSmallestWidth = width;
+                }
+            });
+            smallest.forEach(i => {
+                let gain = Math.min(remainder / smallest.length, nextSmallestWidth - smallestWidth);
+                layout.widths[i] += gain;
+                layout.paddings[i] += .5 * gain;
+            });
+            remainder -= Math.min(remainder, (nextSmallestWidth - smallestWidth) * smallest.length);
+        }
     };
+
+    #trigger = new Menus.Trigger((e, layout) => {
+        if (e instanceof Inputs.Event.Positioned && (!(e instanceof Inputs.Event.Scroll) || e.axis == "x")) {
+            if (e instanceof Inputs.Event.Primary) {
+                let x = this.#trigger.box.left;
+                x += this.style.tabBarSpacing.left;
+                this.#tabs.forEach((tab, i) => {
+                    if (x - .5 * this.style.tabBarGap <= e.pos.x && e.pos.x <= x + layout.widths[i] + .5 * this.style.tabBarGap) {
+                        this.selected = tab.id;
+                    }
+                    x += layout.widths[i] + this.style.tabBarGap;
+                });
+            } else if (e instanceof Inputs.Event.Scroll) {
+                this.scroll = Math.max(Math.min(this.scroll + e.locked .x, layout.overflow), 0);
+            }
+            e.capture();
+        } else if (e instanceof Inputs.Event.Directional && e.axis == "x") {
+            this.selected = this.#tabs[Math.min(Math.max(this.#tabs.findIndex(tab => this.selected == tab.id) + e.dir.x, 0), this.#tabs.length - 1)].id;
+            e.capture();
+        }
+    });
+    triggers = (triggers, pos, layout) => {
+        this.#trigger.set(new Vec2(pos.x - this.scroll, pos.y), layout, this.style.tileRadius).box.width = Math.max(layout.width, layout.wishWidth);
+        triggers.push(this.#trigger);
+    };
+
+    #program;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         if (this.#tabs.length) {
             pos.x += this.style.tabBarSpacing.left - this.scroll;
             pos.y -= this.style.tabBarSpacing.top;
-            let widths = Array.from(layout.widths);
-            let remainder = layout.width - layout.wishWidth;
-            while (remainder > 1e-7) {
-                let smallest;
-                let smallestWidth = Infinity;
-                let nextSmallestWidth = Infinity;
-                widths.forEach((width, i) => {
-                    if (width + 1e-7 < smallestWidth) {
-                        nextSmallestWidth = smallestWidth;
-                        smallestWidth = width;
-                        smallest = [i];
-                    } else if (width < smallestWidth + 1e-7) {
-                        smallest.push(i);
-                    } else if (width < nextSmallestWidth) {
-                        nextSmallestWidth = width;
-                    }
-                });
-                smallest.forEach(i => widths[i] += Math.min(remainder / smallest.length, nextSmallestWidth - smallestWidth));
-                remainder -= Math.min(remainder, (nextSmallestWidth - smallestWidth) * smallest.length);
-            }
             let selectedExists = false;
             this.#tabs.forEach((tab, i) => {
-                // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
+                // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
+                // drawDebugBox(target, new Box2(pos.x - .5 * this.style.tabBarGap, pos.x + layout.widths[i] + .5 * this.style.tabBarGap, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y));
                 if (this.selected == tab.id) {
-                    this.#highlightPos.to({left: pos.x + this.scroll, right: pos.x + widths[i] + this.scroll}).skip(this.#instantAnim || !this.#highlightOpacity.value);
+                    this.#highlightPos.to({left: pos.x + this.scroll, right: pos.x + layout.widths[i] + this.scroll}).skip(this.#instantAnim || !this.#highlightOpacity.value);
                     selectedExists = true;
                 }
-                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(.5 * (widths[i] - layout.widths[i]) + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
-                pos.x += widths[i] + this.style.tabBarGap;
+                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(layout.paddings[i] + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent)).exec();
+                pos.x += layout.widths[i] + this.style.tabBarGap;
             });
             this.#highlightOpacity.to(selectedExists).skip(this.#instantAnim);
             let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y);
@@ -1126,7 +1455,7 @@ Menus.TabBar = class TabBar extends Menus.Widget {
                     highlightSize: box.size,
                     highlightCenter: box.center,
                     highlightRadius: this.style.tabBarHighlightRadius,
-                    highlightColor: Color.okLab(this.style.tabBarHighlightColor.L, this.style.tabBarHighlightColor.a, this.style.tabBarHighlightColor.b, this.style.tabBarHighlightColor.alpha * this.#highlightOpacity.value),
+                    highlightColor: this.style.tabBarHighlightColor.opacity(this.#highlightOpacity.value),
                 },
                 blending: Renderer.Blending.overlay,
             }).exec();
@@ -1156,8 +1485,9 @@ Menus.Divider = class Divider extends Menus.Widget {
         super(owner, remover);
     }
 
-    #program;
     layout = layout => layout.height = this.style.dividerPadding.yTotal + this.style.lineWidth;
+
+    #program;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         this.#program = this.storage.use("DividerProgram", () => [
@@ -1201,6 +1531,8 @@ let translations = new Translations("/src/lang/index.json");
 
 let time = new Time();
 
+let inputs = new Inputs(document, true);
+
 let menus = new Menus(style, renderer, translations, cache);
 
 
@@ -1238,7 +1570,6 @@ let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "su
 let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
 
-// let controls = new Controls(time, settings.controls, document, false);
 time.repeat(() => {
     renderer.width = window.innerWidth;
     renderer.height = window.innerHeight;
@@ -1249,6 +1580,10 @@ time.repeat(() => {
     }
 
     let layout = menus.layout(target2D.size);
+    while (inputs.eventAvailable) {
+        let e = inputs.nextEvent();
+        menus.handle(e, layout);
+    }
     menus.render(target2D, layout);
 
     renderer.show(target2D).delete();
