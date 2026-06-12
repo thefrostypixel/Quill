@@ -150,7 +150,7 @@ let drawDebugBox = (target, box, fill = Color.lRgb(0, 1, 0, .2), border = Color.
     }).exec();
 };
 
-globalThis.Menus = class Menus {
+globalThis.MenuHolder = class MenuHolder {
     constructor(style, renderer, translations, cache) {
         this.#style = style;
         this.#renderer = renderer;
@@ -194,13 +194,13 @@ globalThis.Menus = class Menus {
 
     #menus = [];
     menu = () => {
-        let menu = new Menus.Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
+        let menu = new MenuHolder.Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
         this.#menus.push(menu);
         return menu;
     };
 
     layout = targetSize => this.#menus.map(menu => {
-        let layout = new Menus.Layout(menu);
+        let layout = new MenuHolder.Layout(menu);
         menu.layout(layout, targetSize);
         return layout;
     });
@@ -220,7 +220,7 @@ globalThis.Menus = class Menus {
     };
 };
 
-Menus.Layout = class Layout {
+MenuHolder.Layout = class Layout {
     constructor(owner, width, height) {
         this.#owner = owner;
         this.width = width;
@@ -272,7 +272,7 @@ Menus.Layout = class Layout {
     }
 };
 
-Menus.Trigger = class Trigger {
+MenuHolder.Trigger = class Trigger {
     static contains = (box, radius, e) => {
         if (e instanceof Inputs.Event.Positioned) {
             let x = Math.abs(e.pos.x - box.center.x) - .5 * box.size.x + radius;
@@ -335,7 +335,7 @@ Menus.Trigger = class Trigger {
     };
 };
 
-Menus.Widget = class Widget {
+MenuHolder.Widget = class Widget {
     constructor(owner, remover) {
         this.#owner = owner;
         this.#remover = remover;
@@ -354,29 +354,29 @@ Menus.Widget = class Widget {
         }
     };
 
-    #menus;
-    get menus() {
-        return this.#menus ??= this.#owner instanceof Menus ? this.#owner : this.#owner.menus;
+    #menuHolder;
+    get menuHolder() {
+        return this.#menuHolder ??= this.#owner instanceof MenuHolder ? this.#owner : this.#owner.menuHolder;
     }
 
     get style() {
-        return this.menus.style;
+        return this.menuHolder.style;
     }
     get renderer() {
-        return this.menus.renderer;
+        return this.menuHolder.renderer;
     }
     get translations() {
-        return this.menus.translations;
+        return this.menuHolder.translations;
     }
     get cache() {
-        return this.menus.cache;
+        return this.menuHolder.cache;
     }
     get storage() {
-        return this.menus.storage;
+        return this.menuHolder.storage;
     }
 };
 
-Menus.ElementHolder = class ElementHolder extends Menus.Widget {
+MenuHolder.ElementHolder = class ElementHolder extends MenuHolder.Widget {
     #elements = [];
     get elements() {
         return Array.from(this.#elements);
@@ -387,15 +387,15 @@ Menus.ElementHolder = class ElementHolder extends Menus.Widget {
         return element;
     };
 
-    paneHolder = selected => this.#addElement(Menus.PaneHolder, selected);
-    pane = () => this.#addElement(Menus.Pane);
-    title = title => this.#addElement(Menus.Title, title);
-    tile = (name, description) => this.#addElement(Menus.Tile, name, description);
-    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(Menus.TabBar, tabs, selected);
-    divider = () => this.#addElement(Menus.Divider);
+    paneHolder = selected => this.#addElement(MenuHolder.PaneHolder, selected);
+    pane = () => this.#addElement(MenuHolder.Pane);
+    title = title => this.#addElement(MenuHolder.Title, title);
+    tile = (name, description) => this.#addElement(MenuHolder.Tile, name, description);
+    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(MenuHolder.TabBar, tabs, selected);
+    divider = () => this.#addElement(MenuHolder.Divider);
 };
 
-Menus.Menu = class Menu extends Menus.ElementHolder {
+MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     constructor(owner, remover) {
         super(owner, () => {
             remover();
@@ -448,7 +448,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
     layout = (layout, targetSize) => {
         let width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
         let layouts = this.elements.map(e => {
-            let layout = new Menus.Layout(e, width - this.style.menuPadding.xTotal);
+            let layout = new MenuHolder.Layout(e, width - this.style.menuPadding.xTotal);
             e.layout?.(layout);
             return layout;
         });
@@ -475,7 +475,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
     };
 
     handle = (e, layout) => {
-        if (Menus.Trigger.contains(layout.box, this.style.menuRadius, e)) {
+        if (MenuHolder.Trigger.contains(layout.box, this.style.menuRadius, e)) {
             if (e instanceof Inputs.Event.Positioned) {
                 let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
                 let offset = layout.box.min.sub(extra, extra - this.scroll);
@@ -765,7 +765,7 @@ Menus.Menu = class Menu extends Menus.ElementHolder {
     };
 };
 
-Menus.PaneHolder = class PaneHolder extends Menus.Widget {
+MenuHolder.PaneHolder = class PaneHolder extends MenuHolder.Widget {
     constructor(owner, remover, selected) {
         super(owner, () => {
             remover();
@@ -786,7 +786,7 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
         let animHeight = 0;
         let snapshot = this.#visibilityAnim.snapshot;
         layout.paneLayouts = Object.fromEntries(Object.entries(this.#panes).map(([id, pane]) => {
-            let paneLayout = new Menus.Layout(pane, layout.width);
+            let paneLayout = new MenuHolder.Layout(pane, layout.width);
             pane.layout?.(paneLayout);
             if (this.#selected == id) {
                 height = paneLayout.height;
@@ -820,7 +820,7 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
     pane = id => {
         if (!this.#panes[id]) {
             this.#visibilityAnim.axes[`pane${id}`] = this.#selected == id;
-            return this.#panes[id] = new Menus.Pane(this, () => {
+            return this.#panes[id] = new MenuHolder.Pane(this, () => {
                 delete this.#panes[id];
                 this.#visibilityAnim.axes[`pane${id}`] = undefined;
             });
@@ -842,14 +842,14 @@ Menus.PaneHolder = class PaneHolder extends Menus.Widget {
     }
 };
 
-Menus.Pane = class Pane extends Menus.ElementHolder {
+MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
     constructor(owner, remover) {
         super(owner, () => {
             remover();
             this.elements.forEach(e => e.remove());
             this.#contentTexture?.delete();
         });
-        if (!(this.owner instanceof Menus.PaneHolder)) {
+        if (!(this.owner instanceof MenuHolder.PaneHolder)) {
             this.#visibilityAnim = new Anim({opacity: this.#visible, height: 0}, this.style.paneAccel);
         }
     }
@@ -857,7 +857,7 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
     #height = 0;
     layout = layout => {
         layout.elementLayouts = this.elements.map(element => {
-            let elementLayout = new Menus.Layout(element, layout.width);
+            let elementLayout = new MenuHolder.Layout(element, layout.width);
             element.layout?.(elementLayout);
             return elementLayout;
         });
@@ -966,7 +966,7 @@ Menus.Pane = class Pane extends Menus.ElementHolder {
     };
 };
 
-Menus.Title = class Title extends Menus.Widget {
+MenuHolder.Title = class Title extends MenuHolder.Widget {
     constructor(owner, remover, title) {
         super(owner, remover);
         this.#title = title;
@@ -994,7 +994,7 @@ Menus.Title = class Title extends Menus.Widget {
     }
 };
 
-Menus.Tile = class Tile extends Menus.Widget {
+MenuHolder.Tile = class Tile extends MenuHolder.Widget {
     constructor(owner, remover, name, description) {
         super(owner, () => {
             remover();
@@ -1006,7 +1006,7 @@ Menus.Tile = class Tile extends Menus.Widget {
 
     layout = layout => {
         layout.componentLayouts = this.#components.map(component => {
-            let componentLayout = new Menus.Layout(component);
+            let componentLayout = new MenuHolder.Layout(component);
             component?.layout(componentLayout);
             return componentLayout;
         });
@@ -1014,7 +1014,7 @@ Menus.Tile = class Tile extends Menus.Widget {
     };
 
     // TODO Primary and secondary targets.
-    #trigger = new Menus.Trigger((e, layout) => {});
+    #trigger = new MenuHolder.Trigger((e, layout) => {});
     triggers = (triggers, pos, layout) => {
         triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
         let componentTriggers = [];
@@ -1068,18 +1068,18 @@ Menus.Tile = class Tile extends Menus.Widget {
 
     #components = [];
     switch = toggled => {
-        let component = new Menus.Tile.Switch(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
+        let component = new MenuHolder.Tile.Switch(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
         this.#components.push(component);
         return component;
     };
     checkmark = (choose, id) => {
-        let component = new Menus.Tile.Checkmark(this, () => this.#components.splice(this.#components.indexOf(component), 1), choose, id);
+        let component = new MenuHolder.Tile.Checkmark(this, () => this.#components.splice(this.#components.indexOf(component), 1), choose, id);
         this.#components.push(component);
         return component;
     };
 };
 
-Menus.Tile.Switch = class Switch extends Menus.Widget {
+MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
     constructor(owner, remover, toggled) {
         super(owner, remover);
         this.#toggleState = new Anim(0, this.style.switchAccel);
@@ -1094,7 +1094,7 @@ Menus.Tile.Switch = class Switch extends Menus.Widget {
         layout.height = this.style.switchSize.y;
     };
 
-    #trigger = new Menus.Trigger(e => {
+    #trigger = new MenuHolder.Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
             this.toggle();
             e.capture();
@@ -1181,7 +1181,7 @@ Menus.Tile.Switch = class Switch extends Menus.Widget {
     toggle = () => this.toggled = !this.toggled;
 };
 
-Menus.Tile.Checkmark = class Checkmark extends Menus.Widget {
+MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
     constructor(owner, remover, choose, id) {
         super(owner, remover);
         (this.#choose = choose).checkmarks[this.#id = id] = this;
@@ -1196,7 +1196,7 @@ Menus.Tile.Checkmark = class Checkmark extends Menus.Widget {
         layout.height = this.style.checkmarkSize.y;
     };
 
-    #trigger = new Menus.Trigger(e => {
+    #trigger = new MenuHolder.Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
             this.chosen = true;
             e.capture();
@@ -1289,7 +1289,7 @@ Menus.Tile.Checkmark = class Checkmark extends Menus.Widget {
     update = () => this.#toggleState.to(this.chosen).skip(this.#instantAnim);
 };
 
-Menus.Choose = class Choose {
+MenuHolder.Choose = class Choose {
     constructor(chosen = "") {
         this.#chosen = chosen;
     }
@@ -1310,7 +1310,7 @@ Menus.Choose = class Choose {
     checkmarks = Object.create(null);
 };
 
-Menus.TabBar = class TabBar extends Menus.Widget {
+MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
     constructor(owner, remover, tabs, selected) {
         super(owner, remover);
         this.#highlightOpacity = new Anim(0, this.style.tabBarHighlightOpacityAccel);
@@ -1366,7 +1366,7 @@ Menus.TabBar = class TabBar extends Menus.Widget {
         }
     };
 
-    #trigger = new Menus.Trigger((e, layout) => {
+    #trigger = new MenuHolder.Trigger((e, layout) => {
         if (e instanceof Inputs.Event.Positioned && (!(e instanceof Inputs.Event.Scroll) || e.axis == "x")) {
             if (e instanceof Inputs.Event.Primary) {
                 let x = this.#trigger.box.left;
@@ -1480,7 +1480,7 @@ Menus.TabBar = class TabBar extends Menus.Widget {
     }
 };
 
-Menus.Divider = class Divider extends Menus.Widget {
+MenuHolder.Divider = class Divider extends MenuHolder.Widget {
     constructor(owner, remover) {
         super(owner, remover);
     }
@@ -1533,10 +1533,10 @@ let time = new Time();
 
 let inputs = new Inputs(document, true);
 
-let menus = new Menus(style, renderer, translations, cache);
+let menuHolder = new MenuHolder(style, renderer, translations, cache);
 
 
-let inspector = menus.menu();
+let inspector = menuHolder.menu();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
@@ -1559,7 +1559,7 @@ let textStrikethroughSwitch = textStrikethrough.switch(true);
 let textStrikethroughPane = textPane.pane();
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 let textBaselineTitle = textPane.title("text.baseline");
-let textBaselineChoose = new Menus.Choose("base");
+let textBaselineChoose = new MenuHolder.Choose("base");
 let textBaselineBase = textPane.tile("text.baseline.base");
 let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base");
 let textBaselineSup = textPane.tile("text.baseline.sup");
@@ -1579,12 +1579,12 @@ time.repeat(() => {
         renderer.drawCopy(background, target2D, centerImage(background, target2D)).exec();
     }
 
-    let layout = menus.layout(target2D.size);
+    let layout = menuHolder.layout(new Vec2(innerWidth, innerHeight));
     while (inputs.eventAvailable) {
         let e = inputs.nextEvent();
-        menus.handle(e, layout);
+        menuHolder.handle(e, layout);
     }
-    menus.render(target2D, layout);
+    menuHolder.render(target2D, layout);
 
     renderer.show(target2D).delete();
     cache.sweep();
