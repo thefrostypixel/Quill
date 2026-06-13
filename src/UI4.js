@@ -403,7 +403,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
         });
         this.#visibleAnim = new Anim(this.#visible, this.style.menuVisibilityAccel);
         this.#highlightOpacity = new Anim(0, this.style.menuHighlightOpacityAccel);
-        this.#highlightPos = new Anim({left: 0, right: 0, top: 0, bottom: 0, radius: 0}, this.style.menuHighlightPosAccel);
+        this.#highlightPos = new Anim({left: 0, right: 0, bottom: 0, top: 0, radius: 0}, this.style.menuHighlightPosAccel);
     }
 
     #visible = false;
@@ -427,6 +427,13 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     #highlighted;
     #highlightOpacity;
     #highlightPos;
+    #setHighlighted(highlighted) {
+        if (this.#highlighted != highlighted) {
+            let last = this.#highlighted?.box;
+            this.#highlighted = highlighted;
+            this.#highlightPos.offset({left: (last?.left || 0) - (this.#highlighted?.box.left || 0), right: (last?.right || 0) - (this.#highlighted?.box.right || 0), bottom: (last?.bottom || 0) - (this.#highlighted?.box.bottom || 0), top: (last?.top || 0) - (this.#highlighted?.box.top || 0)});
+        }
+    }
 
     #instantAnim = true;
     endAnims = () => {
@@ -494,14 +501,14 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
                         this.scroll = Math.min(Math.max(this.scroll - e.locked.y, 0), layout.overflow);
                     }
                 } else {
-                    this.#highlighted = undefined;
+                    this.#setHighlighted();
                 }
             } else {
                 if (this.#highlighted) {
                     if (this.triggers(layout).includes(this.#highlighted)) {
                         this.#highlighted.handle(e);
                     } else {
-                        this.#highlighted = undefined;
+                        this.#setHighlighted();
                     }
                 }
                 if (!e.captured && e instanceof Inputs.Event.Directional) {
@@ -509,10 +516,10 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
                     if (this.#highlighted) {
                         let perpAxis = e.axis == "x" ? "y" : "x";
                         let limit = (triggers = triggers.filter(trigger => e.dir[e.axis] * this.#highlighted.box.center[e.axis] < e.dir[e.axis] * trigger.box.center[e.axis] && trigger.box.min[perpAxis] < this.#highlighted.box.max[perpAxis] && this.#highlighted.box.min[perpAxis] < trigger.box.max[perpAxis])).reduce((limit, trigger) => Math.min(limit, e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "max" : "min"][e.axis]), Infinity);
-                        this.#highlighted = triggers.filter(trigger => e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "min" : "max"][e.axis] < limit).reduce((closest, trigger) => closest ? (Math.abs(trigger.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) < Math.abs(closest.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) ? trigger : closest) : trigger, undefined) || this.#highlighted;
+                        this.#setHighlighted(triggers.filter(trigger => e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "min" : "max"][e.axis] < limit).reduce((closest, trigger) => closest ? (Math.abs(trigger.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) < Math.abs(closest.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) ? trigger : closest) : trigger, undefined) || this.#highlighted);
                         e.capture();
                     } else {
-                        this.#highlighted = triggers[0];
+                        this.#setHighlighted(triggers[0]);
                     }
                 }
             }
@@ -541,13 +548,13 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
 
         if (this.#highlighted) {
             if (this.triggers(layout).includes(this.#highlighted)) {
-                this.#highlightPos.to({left: this.#highlighted.box.left, right: this.#highlighted.box.right, top: this.#highlighted.box.top, bottom: this.#highlighted.box.bottom, radius: this.#highlighted.radius}).skip(this.#instantAnim || !this.#highlightOpacity.value);
+                this.#highlightPos.to({left: 0, right: 0, top: 0, bottom: 0, radius: this.#highlighted.radius}).skip(this.#instantAnim || !this.#highlightOpacity.value);
             } else {
-                this.#highlighted = undefined;
+                this.#setHighlighted();
             }
         }
         this.#highlightOpacity.to(!!this.#highlighted).skip(this.#instantAnim);
-        let box = new Box2(this.#highlightPos.values).move(0, this.scroll).multOrigin(devicePixelRatio);
+        let box = new Box2(this.#highlightPos.values.left + (this.#highlighted?.box.left || 0), this.#highlightPos.values.right + (this.#highlighted?.box.right || 0), this.#highlightPos.values.bottom + (this.#highlighted?.box.bottom || 0), this.#highlightPos.values.top + (this.#highlighted?.box.top || 0)).move(0, this.scroll).multOrigin(devicePixelRatio);
         this.#highlightProgram = this.storage.use("MenuHighlightProgram", () => [
             this.renderer.program(`#version 300 es
             precision mediump float;
