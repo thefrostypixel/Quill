@@ -1079,6 +1079,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
     #trigger = new MenuHolder.Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
             this.toggle();
+            this.onToggle?.(this.toggled, this);
             e.capture();
         }
     });
@@ -1161,6 +1162,14 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
         this.#toggleState.to(this.#toggled = !!toggled).skip(this.#instantAnim);
     }
     toggle = () => this.toggled = !this.toggled;
+
+    #onToggle;
+    get onToggle() {
+        return this.#onToggle;
+    }
+    set onToggle(onToggle) {
+        this.#onToggle = onToggle;
+    }
 };
 
 MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
@@ -1180,7 +1189,10 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
 
     #trigger = new MenuHolder.Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
-            this.chosen = true;
+            if (!this.chosen) {
+                this.chosen = true;
+                this.choose.onChoose?.(this.choose.chosen, this.choose);
+            }
             e.capture();
         }
     });
@@ -1289,6 +1301,14 @@ MenuHolder.Choose = class Choose {
         }
     }
 
+    #onChoose;
+    get onChoose() {
+        return this.#onChoose;
+    }
+    set onChoose(onChoose) {
+        this.#onChoose = onChoose;
+    }
+
     checkmarks = Object.create(null);
 };
 
@@ -1353,18 +1373,27 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
             if (e instanceof Inputs.Event.Primary) {
                 let x = this.#trigger.box.left;
                 x += this.style.tabBarSpacing.left;
+                let selected;
                 this.#tabs.forEach((tab, i) => {
                     if (x - .5 * this.style.tabBarGap <= e.pos.x && e.pos.x <= x + layout.widths[i] + .5 * this.style.tabBarGap) {
-                        this.selected = tab.id;
+                        selected = tab.id;
                     }
                     x += layout.widths[i] + this.style.tabBarGap;
                 });
+                if (selected && selected != this.selected) {
+                    this.selected = selected;
+                    this.onSelect?.(selected, this);
+                }
             } else if (e instanceof Inputs.Event.Scroll) {
                 this.scroll = Math.max(Math.min(this.scroll + e.locked .x, layout.overflow), 0);
             }
             e.capture();
         } else if (e instanceof Inputs.Event.Directional && e.axis == "x") {
-            this.selected = this.#tabs[Math.min(Math.max(this.#tabs.findIndex(tab => this.selected == tab.id) + e.dir.x, 0), this.#tabs.length - 1)].id;
+            let selected = this.#tabs[Math.min(Math.max(this.#tabs.findIndex(tab => this.selected == tab.id) + e.dir.x, 0), this.#tabs.length - 1)].id;
+            if (selected != this.selected) {
+                this.selected = selected;
+                this.onSelect?.(selected, this);
+            }
             e.capture();
         }
     });
@@ -1460,6 +1489,14 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
     set selected(selected) {
         this.#selected = `${selected || ""}`;
     }
+
+    #onSelect;
+    get onSelect() {
+        return this.#onSelect;
+    }
+    set onSelect(onSelect) {
+        this.#onSelect = onSelect;
+    }
 };
 
 MenuHolder.Divider = class Divider extends MenuHolder.Widget {
@@ -1524,6 +1561,7 @@ let inspector = menuHolder.menu();
 // let inspectorDivider = inspector.divider();
 let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
 let inspectorPaneHolder = inspector.paneHolder("text");
+inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 
 let textPane = inspectorPaneHolder.pane("text");
 let textTitle = textPane.title("inspector.text");
@@ -1535,11 +1573,13 @@ let textItalicSwitch = textItalic.switch(false);
 let textUnderline = textPane.tile("text.underline");
 let textUnderlineSwitch = textUnderline.switch(true);
 let textUnderlinePane = textPane.pane();
+textUnderlineSwitch.onToggle = toggled => textUnderlinePane.visible = toggled;
 let textUnderlineStyle = textUnderlinePane.tile("line.style");
 let textUnderlineWidth = textUnderlinePane.tile("line.width");
 let textStrikethrough = textPane.tile("text.strikethrough");
 let textStrikethroughSwitch = textStrikethrough.switch(true);
 let textStrikethroughPane = textPane.pane();
+textStrikethroughSwitch.onToggle = toggled => textStrikethroughPane.visible = toggled;
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 let textBaselineTitle = textPane.title("text.baseline");
 let textBaselineChoose = new MenuHolder.Choose("base");
@@ -1573,8 +1613,3 @@ time.repeat(() => {
     renderer.show(target2D).delete();
     cache.sweep();
 });
-
-let switchTabs = () => inspectorTabBar.selected = inspectorPaneHolder.selected = inspectorTabBar.selected == "text" ? "table" : "text";
-let toggleUnderline = () => textUnderlineToggle.toggled = textUnderlinePane.visible = !textUnderlineToggle.toggled;
-let toggleStrikethrough = () => textStrikethroughToggle.toggled = textStrikethroughPane.visible = !textStrikethroughToggle.toggled;
-let advanceBaseline = () => textBaselineChoose.chosen = textBaselineChoose.chosen == "base" ? "sup" : textBaselineChoose.chosen == "sup" ? "sub" : "base";
