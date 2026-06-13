@@ -1,6 +1,5 @@
 let renderer = new Renderer();
 document.body.appendChild(renderer.canvas);
-renderer.canvas.style = "position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;";
 
 let cache = new Cache();
 
@@ -72,7 +71,7 @@ let style = {
 
     checkmarkSize: new Vec2(28, 28),
     checkmarkAccel: 200,
-    checkmarkLineWidth: 3,
+    checkmarkLineWidth: 2.75,
     checkmarkColor: Color.okLab({L: .7, a: -.06, b: -.15}),
 
     tabBarSpacing: new Padding2(2),
@@ -508,26 +507,9 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
                 if (!e.captured && e instanceof Inputs.Event.Directional) {
                     let triggers = this.triggers(layout);
                     if (this.#highlighted) {
-                        /*let stuff = e.dir.y < 0 ? ["top", "bottom"] : e.dir.y > 0 ? ["bottom", "top"] : e.dir.x > 0 ? ["right", "left"] : ["left", "right"];
-                        stuff.push(-e.dir[e.axis], `${e.axis}Center`);
-                        triggers = triggers.filter(trigger => trigger != this.#highlighted && stuff[2] * trigger.box[stuff[0]] < stuff[2] * this.#highlighted.box[stuff[1]]);
-                        console.log(triggers);
-                        let limit = triggers.reduce((limit, trigger) => Math.max(limit, stuff[2] * trigger.box[stuff[1]]), -Infinity);
-                        console.log(limit);
-                        let closest = (triggers = triggers.filter(trigger => limit < stuff[2] * trigger.box[stuff[0]]))[0];
-                        console.log(triggers);
-                        for (let trigger of triggers) {
-                            if (Math.abs(trigger.box[stuff[3]] - this.#highlighted.box[stuff[3]]) < Math.abs(closest.box[stuff[3]] - this.#highlighted.box[stuff[3]])) {
-                                closest = trigger;
-                            }
-                        }*/
-                        let closest = (triggers = triggers.filter(trigger => trigger != this.#highlighted && e.dir[e.axis] * this.#highlighted.box[`${e.axis}Center`] < e.dir[e.axis] * trigger.box[`${e.axis}Center`]))[0];
-                        for (let trigger of triggers) {
-                            if (trigger.box.center.dist(this.#highlighted.box.center) < closest.box.center.dist(this.#highlighted.box.center)) {
-                                closest = trigger;
-                            }
-                        }
-                        this.#highlighted = closest || this.#highlighted;
+                        let perpAxis = e.axis == "x" ? "y" : "x";
+                        let limit = (triggers = triggers.filter(trigger => e.dir[e.axis] * this.#highlighted.box.center[e.axis] < e.dir[e.axis] * trigger.box.center[e.axis] && trigger.box.min[perpAxis] < this.#highlighted.box.max[perpAxis] && this.#highlighted.box.min[perpAxis] < trigger.box.max[perpAxis])).reduce((limit, trigger) => Math.min(limit, e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "max" : "min"][e.axis]), Infinity);
+                        this.#highlighted = triggers.filter(trigger => e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "min" : "max"][e.axis] < limit).reduce((closest, trigger) => closest ? (Math.abs(trigger.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) < Math.abs(closest.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) ? trigger : closest) : trigger, undefined) || this.#highlighted;
                         e.capture();
                     } else {
                         this.#highlighted = triggers[0];
@@ -711,7 +693,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
                 vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
                 vec2 normal = dot(normalDir, normalDir) > 1e-7 ? normalize(normalDir) * sign(uv - menuCenter) : vec2(0);
                 float contentOffset = clamp(distance / padding + 1., 0., 1.);
-                color = texture(content, (uv - menuMin + extra + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
+                color = texture(content, (round(uv - menuMin + extra - .5) + .5 + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
                 vec4 background = vec4(0);
                 if (distance <= lineWidth + .5) {
                     vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin;
@@ -884,7 +866,7 @@ MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
     #program;
     render = (target, pos, layout, opacity = this.#visibilityAnim?.values.opacity ?? 1) => {
         if (opacity && layout.height) {
-            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, this.#height).scale(devicePixelRatio))).clear(new Vec2(target.width, this.#height).scale(devicePixelRatio));
+            (this.#contentTexture ??= this.renderer.texture(new Vec2(target.width, this.#height * devicePixelRatio))).clear(new Vec2(target.width, this.#height * devicePixelRatio));
             // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
             // drawDebugBox(this.#contentTexture, this.#contentTexture.box);
             let elementPos = new Vec2(pos.x, this.#height);
@@ -1257,8 +1239,8 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
                 posTransform: box.vertexMat3(target),
                 uvTransform: box.transformMat3(),
                 p : box.min.add(2.5 / 28 * box.width, 14 / 28 * box.height),
-                v1: v1.scale(Math.min(1, this.#toggleState.value * (1 + v2.length / v1.length))),
-                v2: v2.scale(Math.max(0, (this.#toggleState.value * (v1.length + v2.length) - v1.length) / v2.length)),
+                v1: v1.scale(Math.min(1, this.#toggleState.value ** 2 * (1 + v2.length / v1.length))),
+                v2: v2.scale(Math.max(0, (this.#toggleState.value ** 2 * (v1.length + v2.length) - v1.length) / v2.length)),
                 checkmarkLineWidth: this.style.checkmarkLineWidth * this.#toggleState.value * devicePixelRatio,
                 checkmarkColor: this.style.checkmarkColor,
             },
@@ -1547,6 +1529,7 @@ let textPane = inspectorPaneHolder.pane("text");
 let textTitle = textPane.title("inspector.text");
 let textFamily = textPane.tile("text.family", "The font family.");
 let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
+let textRandomSwitch = textRandom.switch(false);
 let textItalic = textPane.tile("text.italic");
 let textItalicSwitch = textItalic.switch(false);
 let textUnderline = textPane.tile("text.underline");
@@ -1573,6 +1556,7 @@ let tableTitle = tablePane.title("inspector.table");
 time.repeat(() => {
     renderer.width = innerWidth * devicePixelRatio;
     renderer.height = innerHeight * devicePixelRatio;
+    renderer.canvas.style = `position: fixed; left: 0; top: 0; width: ${innerWidth}px; height: ${innerHeight}px;`;
 
     let target2D = renderer.texture({width: renderer.width, height: renderer.height});
     if (background) {
