@@ -1409,25 +1409,30 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
         triggers.push(this.#trigger);
     };
 
+    #lastSelected = "";
     #program;
     render = (target, pos, layout) => {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         if (this.#tabs.length) {
             pos.x += this.style.tabBarSpacing.left - this.scroll;
             pos.y -= this.style.tabBarSpacing.top;
-            let selectedExists = false;
+            let left = 0;
+            let positions = Object.create(null);
             this.#tabs.forEach((tab, i) => {
                 // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.widths[i], pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height)));
                 // drawDebugBox(target, new Box2(pos.x - .5 * this.style.tabBarGap, pos.x + layout.widths[i] + .5 * this.style.tabBarGap, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y));
-                if (this.selected == tab.id) {
-                    this.#highlightPos.to({left: pos.x + this.scroll, right: pos.x + layout.widths[i] + this.scroll}).skip(this.#instantAnim || !this.#highlightOpacity.value);
-                    selectedExists = true;
-                }
-                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(layout.paddings[i] + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent), devicePixelRatio).exec();
-                pos.x += layout.widths[i] + this.style.tabBarGap;
+                this.style.nameFont.draw(target, this.translations.translate(tab.name), pos.copy.add(left + layout.paddings[i] + this.style.tabBarPadding.left, -this.style.tabBarPadding.top - this.style.nameFont.ascent), devicePixelRatio).exec();
+                positions[tab.id] = {left, right: left += layout.widths[i]};
+                left += this.style.tabBarGap;
             });
+            this.#highlightPos.offset({left: (positions[this.#lastSelected]?.left || 0) - (positions[this.selected]?.left || 0), right: (positions[this.#lastSelected]?.right || 0) - (positions[this.selected]?.right || 0)});
+            this.#lastSelected = this.selected;
+            let selectedExists = this.#tabs.some(tab => this.selected == tab.id);
+            if (selectedExists) {
+                this.#highlightPos.to({left: 0, right: 0}).skip(this.#instantAnim || !this.#highlightOpacity.value);
+            }
             this.#highlightOpacity.to(selectedExists).skip(this.#instantAnim);
-            let box = new Box2(this.#highlightPos.values.left - this.scroll, this.#highlightPos.values.right - this.scroll, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y).multOrigin(devicePixelRatio);
+            let box = new Box2(pos.x + (positions[this.selected]?.left || 0) + this.#highlightPos.values.left, pos.x + (positions[this.selected]?.right || 0) + this.#highlightPos.values.right, pos.y - this.style.tabBarPadding.yTotal - this.style.nameFont.height, pos.y).multOrigin(devicePixelRatio);
             this.#program = this.storage.use("TabBarProgram", () => [
                 this.renderer.program(`#version 300 es
                 precision mediump float;
@@ -1473,7 +1478,7 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
                     highlightSize: box.size,
                     highlightCenter: box.center,
                     highlightRadius: this.style.tabBarHighlightRadius * devicePixelRatio,
-                    highlightColor: this.style.tabBarHighlightColor.opacity(this.#highlightOpacity.value),
+                    highlightColor: this.style.tabBarHighlightColor.copy.opacity(this.#highlightOpacity.value),
                 },
                 blending: Renderer.Blending.overlay,
             }).exec();
