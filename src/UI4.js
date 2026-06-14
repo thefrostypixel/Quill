@@ -1002,16 +1002,27 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
         layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.tileTextPadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - this.style.tileTextPadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     };
 
-    // TODO Primary and secondary targets.
-    #trigger = new MenuHolder.Trigger((e, layout) => {});
+    #trigger = new MenuHolder.Trigger((e, layout) => {
+        layout.primaryTrigger?.handler?.(e);
+        if (!e.captured && e instanceof Inputs.Event.Secondary) {
+            layout.secondaryTrigger?.handler?.(e.primary);
+        }
+    });
     triggers = (triggers, pos, layout) => {
-        triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
         let componentTriggers = [];
         let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
         for (let i = 0; i < this.#components.length; i++) {
+            let componentsTriggers = [];
             componentPos.x += this.style.tileComponentSpacing;
-            this.#components[i].triggers?.(componentTriggers, componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), layout.componentLayouts[i]);
+            this.#components[i].triggers?.(componentsTriggers, componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), layout.componentLayouts[i]);
             componentPos.x += layout.componentLayouts[i].width;
+            if (this.#primary == this.#components[i] && componentsTriggers.length) {
+                triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+                layout.primaryTrigger = componentsTriggers.shift();
+            } else if (this.#secondary == this.#components[i] && componentsTriggers.length) {
+                layout.secondaryTrigger = componentsTriggers[0];
+            }
+            componentTriggers.push(...componentsTriggers);
         }
         componentTriggers.forEach(trigger => trigger.box.expand(this.style.tilePadding));
         triggers.push(...componentTriggers)
@@ -1056,19 +1067,46 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
     }
 
     #components = [];
-    switch = toggled => {
-        let component = new MenuHolder.Tile.Switch(this, () => this.#components.splice(this.#components.indexOf(component), 1), toggled);
+    #addComponent = (constructor, ...args) => {
+        let component = new constructor(this, () => this.#components.splice(this.#components.indexOf(component), 1), ...args);
         this.#components.push(component);
         return component;
     };
-    checkmark = (choose, id) => {
-        let component = new MenuHolder.Tile.Checkmark(this, () => this.#components.splice(this.#components.indexOf(component), 1), choose, id);
-        this.#components.push(component);
-        return component;
+    switch = toggled => this.#addComponent(MenuHolder.Tile.Switch, toggled);
+    checkmark = (choose, id) => this.#addComponent(MenuHolder.Tile.Checkmark, choose, id);
+
+    #primary;
+    get primary() {
+        return this.#primary;
+    }
+    set primary(primary) {
+        this.#primary = primary;
+    }
+
+    #secondary;
+    get secondary() {
+        return this.#secondary;
+    }
+    set secondary(secondary) {
+        this.#secondary = secondary;
+    }
+};
+
+MenuHolder.Tile.Component = class Component extends MenuHolder.Widget {
+    isPrimary = () => this.owner.primary == this;
+    makePrimary = () => {
+        this.owner.primary = this;
+        return this;
+    };
+
+    isSecondary = () => this.owner.secondary == this;
+    makeSecondary = () => {
+        this.owner.secondary = this;
+        return this;
     };
 };
 
-MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
+MenuHolder.Tile.Switch = class Switch extends MenuHolder.Tile.Component {
     constructor(owner, remover, toggled) {
         super(owner, remover);
         this.#toggleState = new Anim(0, this.style.switchAccel);
@@ -1179,7 +1217,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Widget {
     }
 };
 
-MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Widget {
+MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Tile.Component {
     constructor(owner, remover, choose, id) {
         super(owner, remover);
         (this.#choose = choose).checkmarks[this.#id = id] = this;
@@ -1571,7 +1609,7 @@ let inspector = menuHolder.menu();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
-let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}], "text");
+let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}, {id: "document", name: "inspector.document"}], "text");
 let inspectorPaneHolder = inspector.paneHolder("text");
 inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 
@@ -1579,28 +1617,29 @@ let textPane = inspectorPaneHolder.pane("text");
 let textTitle = textPane.title("inspector.text");
 let textFamily = textPane.tile("text.family", "The font family.");
 let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
-let textRandomSwitch = textRandom.switch(false);
+let textRandomSwitch = textRandom.switch(false).makePrimary();
 let textItalic = textPane.tile("text.italic");
-let textItalicSwitch = textItalic.switch(false);
+let textItalicSwitch = textItalic.switch(false).makePrimary();
+let textItalicSwitch2 = textItalic.switch(false).makeSecondary();
 let textUnderline = textPane.tile("text.underline");
-let textUnderlineSwitch = textUnderline.switch(true);
+let textUnderlineSwitch = textUnderline.switch(true).makePrimary();
 let textUnderlinePane = textPane.pane();
 textUnderlineSwitch.onToggle = toggled => textUnderlinePane.visible = toggled;
 let textUnderlineStyle = textUnderlinePane.tile("line.style");
 let textUnderlineWidth = textUnderlinePane.tile("line.width");
 let textStrikethrough = textPane.tile("text.strikethrough");
-let textStrikethroughSwitch = textStrikethrough.switch(true);
+let textStrikethroughSwitch = textStrikethrough.switch(true).makePrimary();
 let textStrikethroughPane = textPane.pane();
 textStrikethroughSwitch.onToggle = toggled => textStrikethroughPane.visible = toggled;
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 let textBaselineTitle = textPane.title("text.baseline");
 let textBaselineChoose = new MenuHolder.Choose("base");
 let textBaselineBase = textPane.tile("text.baseline.base");
-let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base");
+let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base").makePrimary();
 let textBaselineSup = textPane.tile("text.baseline.sup");
-let textBaselineSupCheckmark = textBaselineSup.checkmark(textBaselineChoose, "sup");
+let textBaselineSupCheckmark = textBaselineSup.checkmark(textBaselineChoose, "sup").makePrimary();
 let textBaselineSub = textPane.tile("text.baseline.sub");
-let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "sub");
+let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "sub").makePrimary();
 
 let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
