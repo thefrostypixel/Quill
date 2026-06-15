@@ -1,0 +1,3 @@
+[submodule "src/antica"]
+	path = src/antica
+	url = ../antica
