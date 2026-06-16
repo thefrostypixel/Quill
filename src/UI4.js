@@ -1644,6 +1644,8 @@ let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "su
 let tablePane = inspectorPaneHolder.pane("table");
 let tableTitle = tablePane.title("inspector.table");
 
+inputs.onEvent = e => menuHolder.handle(e, menuHolder.layout(new Vec2(innerWidth, innerHeight)));
+
 time.repeat(() => {
     renderer.width = innerWidth * devicePixelRatio;
     renderer.height = innerHeight * devicePixelRatio;
@@ -1654,12 +1656,7 @@ time.repeat(() => {
         renderer.drawCopy(background, target2D, centerImage(background, target2D)).exec();
     }
 
-    let layout = menuHolder.layout(new Vec2(innerWidth, innerHeight));
-    while (inputs.eventAvailable) {
-        let e = inputs.nextEvent();
-        menuHolder.handle(e, layout);
-    }
-    menuHolder.render(target2D, layout);
+    menuHolder.render(target2D, menuHolder.layout(new Vec2(innerWidth, innerHeight)));
 
     renderer.show(target2D).delete();
     cache.sweep();
