@@ -192,13 +192,13 @@ globalThis.MenuHolder = class MenuHolder {
 
     #menus = [];
     menu = () => {
-        let menu = new MenuHolder.Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
+        let menu = new Menu(this, () => this.#menus.splice(this.#menus.indexOf(menu), 1));
         this.#menus.push(menu);
         return menu;
     };
 
     layout = targetSize => this.#menus.map(menu => {
-        let layout = new MenuHolder.Layout(menu);
+        let layout = new Layout(menu);
         menu.layout(layout, targetSize);
         return layout;
     });
@@ -218,7 +218,7 @@ globalThis.MenuHolder = class MenuHolder {
     };
 };
 
-MenuHolder.Layout = class Layout {
+globalThis.Layout = class Layout {
     constructor(owner, width, height) {
         this.#owner = owner;
         this.width = width;
@@ -270,7 +270,7 @@ MenuHolder.Layout = class Layout {
     }
 };
 
-MenuHolder.Trigger = class Trigger {
+globalThis.Trigger = class Trigger {
     static contains = (box, radius, e) => {
         if (e instanceof Inputs.Event.Positioned) {
             let x = Math.abs(e.pos.x - box.center.x) - .5 * box.size.x + radius;
@@ -333,7 +333,7 @@ MenuHolder.Trigger = class Trigger {
     };
 };
 
-MenuHolder.Widget = class Widget {
+globalThis.Widget = class Widget {
     constructor(owner, remover) {
         this.#owner = owner;
         this.#remover = remover;
@@ -374,7 +374,7 @@ MenuHolder.Widget = class Widget {
     }
 };
 
-MenuHolder.ElementHolder = class ElementHolder extends MenuHolder.Widget {
+globalThis.ElementHolder = class ElementHolder extends Widget {
     #elements = [];
     get elements() {
         return Array.from(this.#elements);
@@ -385,15 +385,15 @@ MenuHolder.ElementHolder = class ElementHolder extends MenuHolder.Widget {
         return element;
     };
 
-    paneHolder = selected => this.#addElement(MenuHolder.PaneHolder, selected);
-    pane = () => this.#addElement(MenuHolder.Pane);
-    title = title => this.#addElement(MenuHolder.Title, title);
-    tile = (name, description) => this.#addElement(MenuHolder.Tile, name, description);
-    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(MenuHolder.TabBar, tabs, selected);
-    divider = () => this.#addElement(MenuHolder.Divider);
+    paneHolder = selected => this.#addElement(PaneHolder, selected);
+    pane = () => this.#addElement(Pane);
+    title = title => this.#addElement(Title, title);
+    tile = (name, description) => this.#addElement(Tile, name, description);
+    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(TabBar, tabs, selected);
+    divider = () => this.#addElement(Divider);
 };
 
-MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
+globalThis.Menu = class Menu extends ElementHolder {
     constructor(owner, remover) {
         super(owner, () => {
             remover();
@@ -453,7 +453,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     layout = (layout, targetSize) => {
         let width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
         let layouts = this.elements.map(e => {
-            let layout = new MenuHolder.Layout(e, width - this.style.menuPadding.xTotal);
+            let layout = new Layout(e, width - this.style.menuPadding.xTotal);
             e.layout?.(layout);
             return layout;
         });
@@ -480,7 +480,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     };
 
     handle = (e, layout) => {
-        if (MenuHolder.Trigger.contains(layout.box, this.style.menuRadius, e)) {
+        if (Trigger.contains(layout.box, this.style.menuRadius, e)) {
             if (e instanceof Inputs.Event.Positioned) {
                 let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
                 let offset = layout.box.min.sub(extra, extra - this.scroll);
@@ -753,7 +753,7 @@ MenuHolder.Menu = class Menu extends MenuHolder.ElementHolder {
     };
 };
 
-MenuHolder.PaneHolder = class PaneHolder extends MenuHolder.Widget {
+globalThis.PaneHolder = class PaneHolder extends Widget {
     constructor(owner, remover, selected) {
         super(owner, () => {
             remover();
@@ -774,7 +774,7 @@ MenuHolder.PaneHolder = class PaneHolder extends MenuHolder.Widget {
         let animHeight = 0;
         let snapshot = this.#visibilityAnim.snapshot;
         layout.paneLayouts = Object.fromEntries(Object.entries(this.#panes).map(([id, pane]) => {
-            let paneLayout = new MenuHolder.Layout(pane, layout.width);
+            let paneLayout = new Layout(pane, layout.width);
             pane.layout?.(paneLayout);
             if (this.#selected == id) {
                 height = paneLayout.height;
@@ -808,7 +808,7 @@ MenuHolder.PaneHolder = class PaneHolder extends MenuHolder.Widget {
     pane = id => {
         if (!this.#panes[id]) {
             this.#visibilityAnim.axes[`pane${id}`] = this.#selected == id;
-            return this.#panes[id] = new MenuHolder.Pane(this, () => {
+            return this.#panes[id] = new Pane(this, () => {
                 delete this.#panes[id];
                 this.#visibilityAnim.axes[`pane${id}`] = undefined;
             });
@@ -830,14 +830,14 @@ MenuHolder.PaneHolder = class PaneHolder extends MenuHolder.Widget {
     }
 };
 
-MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
+globalThis.Pane = class Pane extends ElementHolder {
     constructor(owner, remover) {
         super(owner, () => {
             remover();
             this.elements.forEach(e => e.remove());
             this.#contentTexture?.delete();
         });
-        if (!(this.owner instanceof MenuHolder.PaneHolder)) {
+        if (!(this.owner instanceof PaneHolder)) {
             this.#visibilityAnim = new Anim({opacity: this.#visible, height: 0}, this.style.paneAccel);
         }
     }
@@ -845,7 +845,7 @@ MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
     #height = 0;
     layout = layout => {
         layout.elementLayouts = this.elements.map(element => {
-            let elementLayout = new MenuHolder.Layout(element, layout.width);
+            let elementLayout = new Layout(element, layout.width);
             element.layout?.(elementLayout);
             return elementLayout;
         });
@@ -955,7 +955,7 @@ MenuHolder.Pane = class Pane extends MenuHolder.ElementHolder {
     };
 };
 
-MenuHolder.Title = class Title extends MenuHolder.Widget {
+globalThis.Title = class Title extends Widget {
     constructor(owner, remover, title) {
         super(owner, remover);
         this.#title = title;
@@ -983,7 +983,7 @@ MenuHolder.Title = class Title extends MenuHolder.Widget {
     }
 };
 
-MenuHolder.Tile = class Tile extends MenuHolder.Widget {
+globalThis.Tile = class Tile extends Widget {
     constructor(owner, remover, name, description) {
         super(owner, () => {
             remover();
@@ -995,14 +995,14 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
 
     layout = layout => {
         layout.componentLayouts = this.#components.map(component => {
-            let componentLayout = new MenuHolder.Layout(component);
+            let componentLayout = new Layout(component);
             component?.layout(componentLayout);
             return componentLayout;
         });
         layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.tileTextPadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - this.style.tileTextPadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
     };
 
-    #trigger = new MenuHolder.Trigger((e, layout) => {
+    #trigger = new Trigger((e, layout) => {
         layout.primaryTrigger?.handler?.(e);
         if (!e.captured && e instanceof Inputs.Event.Secondary) {
             layout.secondaryTrigger?.handler?.(e.primary);
@@ -1079,8 +1079,8 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
         this.#components.push(component);
         return component;
     };
-    switch = toggled => this.#addComponent(MenuHolder.Tile.Switch, toggled);
-    checkmark = (choose, id) => this.#addComponent(MenuHolder.Tile.Checkmark, choose, id);
+    switch = toggled => this.#addComponent(Switch, toggled);
+    checkmark = (choose, id) => this.#addComponent(Checkmark, choose, id);
 
     #primary;
     get primary() {
@@ -1111,7 +1111,7 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
     };
 };
 
-MenuHolder.Tile.Component = class Component extends MenuHolder.Widget {
+globalThis.Component = class Component extends Widget {
     isPrimary = () => this.owner.primary == this;
     makePrimary = () => {
         this.owner.primary = this;
@@ -1125,7 +1125,7 @@ MenuHolder.Tile.Component = class Component extends MenuHolder.Widget {
     };
 };
 
-MenuHolder.Tile.Switch = class Switch extends MenuHolder.Tile.Component {
+globalThis.Switch = class Switch extends Component {
     constructor(owner, remover, toggled) {
         super(owner, remover);
         this.#toggleState = new Anim(0, this.style.switchAccel);
@@ -1140,7 +1140,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Tile.Component {
         layout.height = this.style.switchSize.y;
     };
 
-    #trigger = new MenuHolder.Trigger(e => {
+    #trigger = new Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
             this.toggle();
             this.onToggle?.(this.toggled, this);
@@ -1236,7 +1236,7 @@ MenuHolder.Tile.Switch = class Switch extends MenuHolder.Tile.Component {
     }
 };
 
-MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Tile.Component {
+globalThis.Checkmark = class Checkmark extends Component {
     constructor(owner, remover, choose, id) {
         super(owner, remover);
         (this.#choose = choose).checkmarks[this.#id = id] = this;
@@ -1251,7 +1251,7 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Tile.Component {
         layout.height = this.style.checkmarkSize.y;
     };
 
-    #trigger = new MenuHolder.Trigger(e => {
+    #trigger = new Trigger(e => {
         if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
             if (!this.chosen) {
                 this.chosen = true;
@@ -1347,7 +1347,7 @@ MenuHolder.Tile.Checkmark = class Checkmark extends MenuHolder.Tile.Component {
     update = () => this.#toggleState.to(this.chosen).skip(this.#instantAnim);
 };
 
-MenuHolder.Choose = class Choose {
+globalThis.Choose = class Choose {
     constructor(chosen = "") {
         this.#chosen = chosen;
     }
@@ -1376,7 +1376,7 @@ MenuHolder.Choose = class Choose {
     checkmarks = Object.create(null);
 };
 
-MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
+globalThis.TabBar = class TabBar extends Widget {
     constructor(owner, remover, tabs, selected) {
         super(owner, remover);
         this.#highlightOpacity = new Anim(0, this.style.tabBarHighlightOpacityAccel);
@@ -1432,7 +1432,7 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
         }
     };
 
-    #trigger = new MenuHolder.Trigger((e, layout) => {
+    #trigger = new Trigger((e, layout) => {
         if (e instanceof Inputs.Event.Positioned && (!(e instanceof Inputs.Event.Scroll) || e.axis == "x")) {
             if (e instanceof Inputs.Event.Primary) {
                 let x = this.#trigger.box.left;
@@ -1568,7 +1568,7 @@ MenuHolder.TabBar = class TabBar extends MenuHolder.Widget {
     }
 };
 
-MenuHolder.Divider = class Divider extends MenuHolder.Widget {
+globalThis.Divider = class Divider extends Widget {
     constructor(owner, remover) {
         super(owner, remover);
     }
@@ -1652,7 +1652,7 @@ let textStrikethroughPane = textPane.pane();
 textStrikethroughSwitch.onToggle = toggled => textStrikethroughPane.visible = toggled;
 let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
 let textBaselineTitle = textPane.title("text.baseline");
-let textBaselineChoose = new MenuHolder.Choose("base");
+let textBaselineChoose = new Choose("base");
 let textBaselineBase = textPane.tile("text.baseline.base");
 let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base").makePrimary();
 let textBaselineSup = textPane.tile("text.baseline.sup");
