@@ -406,6 +406,18 @@ globalThis.Menu = class Menu extends ElementHolder {
         this.#highlightPos = new Anim({left: 0, right: 0, bottom: 0, top: 0, radius: 0}, this.style.menuHighlightPosAccel);
     }
 
+    #pos = new Vec2();
+    get pos() {
+        return this.#pos;
+    }
+    set pos(pos) {
+        this.#pos = pos;
+    }
+    position = (...v) => {
+        this.pos = new Vec2(...v);
+        return this;
+    };
+
     #visible = false;
     get visible() {
         return this.#visible;
@@ -459,8 +471,8 @@ globalThis.Menu = class Menu extends ElementHolder {
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
         let height = Math.min(targetSize.y - this.style.menuSpacing.yTotal, contentHeight);
-        let box = new Box2({width, height});
-        box.center = targetSize.copy.scale(.5).floor().add(.5 * width % 1, .5 * height % 1);
+        let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, this.style.menuSpacing.left), targetSize.x - this.style.menuSpacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - height, this.style.menuSpacing.bottom), targetSize.y - height - this.style.menuSpacing.top));
+        let box = new Box2(corner, new Vec2(width, height).add(corner));
         layout.width = box.width;
         layout.height = box.height;
         layout.box = box;
@@ -1624,7 +1636,7 @@ let inputs = new Inputs(document, true);
 let menuHolder = new MenuHolder(style, renderer, translations, cache);
 
 
-let inspector = menuHolder.menu();
+let inspector = menuHolder.menu().position(1500, 1500);
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
