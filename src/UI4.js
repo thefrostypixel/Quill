@@ -45,6 +45,7 @@ let style = {
     menuShadowOffset: new Vec2(0, -10),
     menuAccel: 20000,
     menuVisibilityAccel: 500,
+    menuVisibilityAnimHeightScale: 100,
     menuHighlightColor: Color.okLab({L: .8}, .25),
     menuHighlightOpacityAccel: 200,
     menuHighlightPosAccel: 20000,
@@ -401,7 +402,7 @@ globalThis.Menu = class Menu extends ElementHolder {
             this.#blurTexture?.delete();
             this.#contentTexture?.delete();
         });
-        this.#visibleAnim = new Anim(this.#visible, this.style.menuVisibilityAccel);
+        this.#visibilityAnim = new Anim({opacity: this.#visible, height: 0}, this.style.menuVisibilityAccel);
         this.#highlightOpacity = new Anim(0, this.style.menuHighlightOpacityAccel);
         this.#highlightPos = new Anim({left: 0, right: 0, bottom: 0, top: 0, radius: 0}, this.style.menuHighlightPosAccel);
     }
@@ -427,13 +428,20 @@ globalThis.Menu = class Menu extends ElementHolder {
         if (!this.partiallyVisible) {
             this.elements.forEach(e => e.endAnims?.());
         }
+        this.#visibilityAnim.to({opacity: this.#visible = !!visible, height: !!visible * this.#height / this.style.menuVisibilityAnimHeightScale}).skip(this.#instantAnim);
     }
-    #visibleAnim;
-    get visibleAnim() {
-        return this.#visibleAnim.value;
-    }
+    hide = () => {
+        this.visible = false;
+        return this;
+    };
+    show = () => {
+        this.visible = true;
+        return this;
+    };
+
+    #visibilityAnim;
     get partiallyVisible() {
-        return !!this.#visibleAnim.value;
+        return !!this.#visibilityAnim.values.opacity;
     }
 
     #highlighted;
@@ -449,7 +457,7 @@ globalThis.Menu = class Menu extends ElementHolder {
 
     #instantAnim = true;
     endAnims = () => {
-        this.#visibleAnim.skip();
+        this.#visibilityAnim.skip();
         this.#highlightOpacity.skip();
         this.#highlightPos.skip();
     };
@@ -462,22 +470,26 @@ globalThis.Menu = class Menu extends ElementHolder {
         this.#scroll = scroll;
     }
 
+    #height = 0;
     layout = (layout, targetSize) => {
-        let width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
-        let layouts = this.elements.map(e => {
+        let width = layout.width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
+        let layouts = layout.layouts = this.elements.map(e => {
             let layout = new Layout(e, width - this.style.menuPadding.xTotal);
             e.layout?.(layout);
             return layout;
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
         let height = Math.min(targetSize.y - this.style.menuSpacing.yTotal, contentHeight);
-        let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, this.style.menuSpacing.left), targetSize.x - this.style.menuSpacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - height, this.style.menuSpacing.bottom), targetSize.y - height - this.style.menuSpacing.top));
-        let box = new Box2(corner, new Vec2(width, height).add(corner));
-        layout.width = box.width;
-        layout.height = box.height;
-        layout.box = box;
-        layout.layouts = layouts;
-        this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - height);
+        if (this.#height != height) {
+            if (this.#visible) {
+                this.#visibilityAnim.targets.height = height / this.style.menuVisibilityAnimHeightScale;
+            }
+            this.#visibilityAnim.values.height = height * this.#visibilityAnim.values.opacity / this.style.menuVisibilityAnimHeightScale;
+        }
+        this.#height = layout.height = Math.round(this.#visibilityAnim.values.height * this.style.menuVisibilityAnimHeightScale);
+        let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, this.style.menuSpacing.left), targetSize.x - this.style.menuSpacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - layout.height, this.style.menuSpacing.bottom), targetSize.y - layout.height - this.style.menuSpacing.top));
+        layout.box = new Box2(corner, new Vec2(width, layout.height).add(corner));
+        this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - layout.height);
     };
 
     triggers = layout => {
@@ -551,216 +563,223 @@ globalThis.Menu = class Menu extends ElementHolder {
     #blurProgram;
     #mainProgram;
     render = (target, layout) => {
-        let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur).multOrigin(devicePixelRatio);
-        (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
-        let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
-        (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio))).clear(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio));
+        if (this.partiallyVisible) {
+            let blurBox = layout.box.copy.expand(this.style.lineWidth).expand(0, this.style.menuBlur).multOrigin(devicePixelRatio);
+            (this.#blurTexture ??= this.renderer.texture(blurBox)).clear(blurBox);
+            let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
+            (this.#contentTexture ??= this.renderer.texture(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio))).clear(layout.box.size.add(2 * extra, 2 * extra).scale(devicePixelRatio));
 
-        // this.triggers(layout).forEach(trigger => drawDebugBox(this.#contentTexture, trigger.box.copy.move(0, this.scroll)));
+            // this.triggers(layout).forEach(trigger => drawDebugBox(this.#contentTexture, trigger.box.copy.move(0, this.scroll)));
 
-        if (this.#highlighted) {
-            if (this.triggers(layout).includes(this.#highlighted)) {
-                this.#highlightPos.to({left: 0, right: 0, top: 0, bottom: 0, radius: this.#highlighted.radius}).skip(this.#instantAnim || !this.#highlightOpacity.value);
-            } else {
-                this.#setHighlighted();
-            }
-        }
-        this.#highlightOpacity.to(!!this.#highlighted).skip(this.#instantAnim);
-        let box = new Box2(this.#highlightPos.values.left + (this.#highlighted?.box.left || 0), this.#highlightPos.values.right + (this.#highlighted?.box.right || 0), this.#highlightPos.values.bottom + (this.#highlighted?.box.bottom || 0), this.#highlightPos.values.top + (this.#highlighted?.box.top || 0)).move(0, this.scroll).multOrigin(devicePixelRatio);
-        this.#highlightProgram = this.storage.use("MenuHighlightProgram", () => [
-            this.renderer.program(`#version 300 es
-            precision mediump float;
-
-            in vec2 pos;
-            uniform mat3 posTransform;
-            uniform mat3 uvTransform;
-            out vec2 uv;
-
-            void main() {
-                uv = (uvTransform * vec3(pos, 1)).xy;
-                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
-            }
-            `, `#version 300 es
-            precision mediump float;
-
-            in vec2 uv;
-            uniform vec2 highlightSize;
-            uniform vec2 highlightCenter;
-            uniform float highlightRadius;
-            uniform vec4 highlightColor;
-            out vec4 color;
-
-            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
-                vec2 vec = abs(uv - center) - .5 * size + radius;
-                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
-            }
-
-            void main() {
-                float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
-                color = highlightColor * smoothstep(1., 0., distance);
-            }
-            `),
-            program => program.delete(),
-        ]);
-        renderer.draw({
-            target: this.#contentTexture,
-            program: this.#highlightProgram,
-            mesh: renderer.boxMesh2D,
-            uniforms: {
-                posTransform: box.vertexMat3(this.#contentTexture),
-                uvTransform: box.transformMat3(),
-                highlightSize: box.size,
-                highlightCenter: box.center,
-                highlightRadius: this.#highlightPos.values.radius * devicePixelRatio,
-                highlightColor: this.style.menuHighlightColor.copy.opacity(this.#highlightOpacity.value),
-            },
-            blending: Renderer.Blending.overlay,
-        }).exec();
-
-        let pos = new Vec2(this.style.menuPadding.left + extra, layout.box.height + extra - this.style.menuPadding.top + this.scroll);
-        for (let i = 0; i < this.elements.length; i++) {
-            this.elements[i].render(this.#contentTexture, pos.copy, layout.layouts[i]);
-            pos.y -= layout.layouts[i].height;
-        }
-
-        this.#blurProgram = this.storage.use("MenuBlurProgram", () => [
-            this.renderer.program(`#version 300 es
-            precision mediump float;
-            in vec2 pos;
-            uniform mat3 posTransform;
-            uniform mat3 uvTransform;
-            out vec2 uv;
-            void main() {
-                uv = (uvTransform * vec3(pos, 1)).xy;
-                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
-            }
-            `, `#version 300 es
-            precision mediump float;
-
-            in vec2 uv;
-            uniform sampler2D src;
-            uniform vec2 targetSize;
-            uniform float menuBlur;
-            out vec4 color;
-
-            void main() {
-                for (int i = -8; i <= 8; i++) {
-                    color += texture(src, (uv + vec2(i, 0) * .125 * menuBlur) / targetSize) * exp(-.03125 * float(i * i));
-                }
-                color *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
-            }
-            `),
-            program => program.delete(),
-        ]);
-        renderer.draw({
-            target: this.#blurTexture,
-            program: this.#blurProgram,
-            mesh: renderer.boxMesh2D,
-            uniforms: {
-                posTransform: this.#blurTexture.box.vertexMat3(this.#blurTexture),
-                uvTransform: blurBox.transformMat3(),
-                src: target,
-                targetSize: target.size,
-                menuBlur: this.style.menuBlur,
-            },
-            blending: Renderer.Blending.overwrite,
-        }).exec();
-        this.#mainProgram = this.storage.use("MenuMainProgram", () => [
-            this.renderer.program(`#version 300 es
-            precision mediump float;
-
-            in vec2 pos;
-            uniform mat3 posTransform;
-            uniform mat3 uvTransform;
-            out vec2 uv;
-
-            void main() {
-                uv = (uvTransform * vec3(pos, 1)).xy;
-                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
-            }
-            `, `#version 300 es
-            precision mediump float;
-
-            in vec2 uv;
-            uniform sampler2D blur;
-            uniform vec2 blurMin;
-            uniform vec2 blurSize;
-            uniform sampler2D content;
-            uniform vec2 contentSize;
-            uniform vec2 targetSize;
-            uniform vec2 menuSize;
-            uniform vec2 menuMin;
-            uniform vec2 menuCenter;
-            uniform float menuRadius;
-            uniform vec4 menuBackground;
-            uniform float menuBlur;
-            uniform vec4 menuShadowColor;
-            uniform float menuShadowBlur;
-            uniform vec2 menuShadowOffset;
-            uniform float lineWidth;
-            uniform float padding;
-            uniform float extra;
-            out vec4 color;
-
-            float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
-                vec2 vec = abs(uv - center) - .5 * size + radius;
-                return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
-            }
-
-            void main() {
-                float distance = roundBoxDist(uv, menuSize, menuCenter, menuRadius);
-                vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
-                vec2 normal = dot(normalDir, normalDir) > 1e-7 ? normalize(normalDir) * sign(uv - menuCenter) : vec2(0);
-                float contentOffset = clamp(distance / padding + 1., 0., 1.);
-                color = texture(content, (round(uv - menuMin + extra - .5) + .5 + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
-                vec4 background = vec4(0);
-                if (distance <= lineWidth + .5) {
-                    vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin;
-                    for (int i = -8; i <= 8; i++) {
-                        background += texture(blur, (sampleCenter + vec2(0, i) * .125 * menuBlur) / blurSize) * exp(-.03125 * float(i * i));
-                    }
-                    background *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
-                    background = mix(background, vec4(menuBackground.rgb, 1), menuBackground.a);
-                }
-                color += (1. - color.a) * (.125 + .5 * (2.75 - background) * background) * smoothstep(-1., 0., distance) * smoothstep(lineWidth + .5, lineWidth - .5, distance);
-                if (distance < 0.) {
-                    color += (1. - color.a) * background;
+            if (this.#highlighted) {
+                if (this.triggers(layout).includes(this.#highlighted)) {
+                    this.#highlightPos.to({left: 0, right: 0, top: 0, bottom: 0, radius: this.#highlighted.radius}).skip(this.#instantAnim || !this.#highlightOpacity.value);
                 } else {
-                    float shadowDistance = roundBoxDist(uv, menuSize - menuShadowBlur, menuCenter + menuShadowOffset, menuRadius);
-                    color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
+                    this.#setHighlighted();
                 }
             }
-            `),
-            program => program.delete(),
-        ]);
-        renderer.draw({
-            target,
-            program: this.#mainProgram,
-            mesh: renderer.boxMesh2D,
-            uniforms: {
-                posTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).vertexMat3(target),
-                uvTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).transformMat3(),
-                blur: this.#blurTexture,
-                blurMin: blurBox.min,
-                blurSize: blurBox.size,
-                content: this.#contentTexture,
-                contentSize: this.#contentTexture.size,
-                targetSize: target.size,
-                menuSize: layout.box.size.scale(devicePixelRatio),
-                menuMin: layout.box.min.scale(devicePixelRatio),
-                menuCenter: layout.box.center.scale(devicePixelRatio),
-                menuRadius: this.style.menuRadius * devicePixelRatio,
-                menuBackground: this.style.menuBackground,
-                menuBlur: this.style.menuBlur * devicePixelRatio,
-                menuShadowColor: this.style.menuShadowColor,
-                menuShadowBlur: this.style.menuShadowBlur * devicePixelRatio,
-                menuShadowOffset: this.style.menuShadowOffset.copy.scale(devicePixelRatio),
-                lineWidth: this.style.lineWidth * devicePixelRatio,
-                padding: this.style.menuPadding.left * devicePixelRatio,
-                extra: extra * devicePixelRatio,
-            },
-            blending: Renderer.Blending.overlay,
-        }).exec();
+            this.#highlightOpacity.to(!!this.#highlighted).skip(this.#instantAnim);
+            let box = new Box2(this.#highlightPos.values.left + (this.#highlighted?.box.left || 0), this.#highlightPos.values.right + (this.#highlighted?.box.right || 0), this.#highlightPos.values.bottom + (this.#highlighted?.box.bottom || 0), this.#highlightPos.values.top + (this.#highlighted?.box.top || 0)).move(0, this.scroll).multOrigin(devicePixelRatio);
+            this.#highlightProgram = this.storage.use("MenuHighlightProgram", () => [
+                this.renderer.program(`#version 300 es
+                precision mediump float;
+
+                in vec2 pos;
+                uniform mat3 posTransform;
+                uniform mat3 uvTransform;
+                out vec2 uv;
+
+                void main() {
+                    uv = (uvTransform * vec3(pos, 1)).xy;
+                    gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+                }
+                `, `#version 300 es
+                precision mediump float;
+
+                in vec2 uv;
+                uniform vec2 highlightSize;
+                uniform vec2 highlightCenter;
+                uniform float highlightRadius;
+                uniform vec4 highlightColor;
+                out vec4 color;
+
+                float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                    vec2 vec = abs(uv - center) - .5 * size + radius;
+                    return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+                }
+
+                void main() {
+                    float distance = roundBoxDist(uv, highlightSize - 1., highlightCenter, highlightRadius - .5);
+                    color = highlightColor * smoothstep(1., 0., distance);
+                }
+                `),
+                program => program.delete(),
+            ]);
+            renderer.draw({
+                target: this.#contentTexture,
+                program: this.#highlightProgram,
+                mesh: renderer.boxMesh2D,
+                uniforms: {
+                    posTransform: box.vertexMat3(this.#contentTexture),
+                    uvTransform: box.transformMat3(),
+                    highlightSize: box.size,
+                    highlightCenter: box.center,
+                    highlightRadius: this.#highlightPos.values.radius * devicePixelRatio,
+                    highlightColor: this.style.menuHighlightColor.copy.opacity(this.#highlightOpacity.value),
+                },
+                blending: Renderer.Blending.overlay,
+            }).exec();
+
+            let pos = new Vec2(this.style.menuPadding.left + extra, layout.box.height + extra - this.style.menuPadding.top + this.scroll);
+            for (let i = 0; i < this.elements.length; i++) {
+                this.elements[i].render(this.#contentTexture, pos.copy, layout.layouts[i]);
+                pos.y -= layout.layouts[i].height;
+            }
+
+            this.#blurProgram = this.storage.use("MenuBlurProgram", () => [
+                this.renderer.program(`#version 300 es
+                precision mediump float;
+
+                in vec2 pos;
+                uniform mat3 posTransform;
+                uniform mat3 uvTransform;
+                out vec2 uv;
+
+                void main() {
+                    uv = (uvTransform * vec3(pos, 1)).xy;
+                    gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+                }
+                `, `#version 300 es
+                precision mediump float;
+
+                in vec2 uv;
+                uniform sampler2D src;
+                uniform vec2 targetSize;
+                uniform float menuBlur;
+                out vec4 color;
+
+                void main() {
+                    for (int i = -8; i <= 8; i++) {
+                        color += texture(src, (uv + vec2(i, 0) * .125 * menuBlur) / targetSize) * exp(-.03125 * float(i * i));
+                    }
+                    color *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
+                }
+                `),
+                program => program.delete(),
+            ]);
+            renderer.draw({
+                target: this.#blurTexture,
+                program: this.#blurProgram,
+                mesh: renderer.boxMesh2D,
+                uniforms: {
+                    posTransform: this.#blurTexture.box.vertexMat3(this.#blurTexture),
+                    uvTransform: blurBox.transformMat3(),
+                    src: target,
+                    targetSize: target.size,
+                    menuBlur: this.style.menuBlur,
+                },
+                blending: Renderer.Blending.overwrite,
+            }).exec();
+            this.#mainProgram = this.storage.use("MenuMainProgram", () => [
+                this.renderer.program(`#version 300 es
+                precision mediump float;
+
+                in vec2 pos;
+                uniform mat3 posTransform;
+                uniform mat3 uvTransform;
+                out vec2 uv;
+
+                void main() {
+                    uv = (uvTransform * vec3(pos, 1)).xy;
+                    gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+                }
+                `, `#version 300 es
+                precision mediump float;
+
+                in vec2 uv;
+                uniform float opacity;
+                uniform sampler2D blur;
+                uniform vec2 blurMin;
+                uniform vec2 blurSize;
+                uniform sampler2D content;
+                uniform vec2 contentSize;
+                uniform vec2 targetSize;
+                uniform vec2 menuSize;
+                uniform vec2 menuMin;
+                uniform vec2 menuCenter;
+                uniform float menuRadius;
+                uniform vec4 menuBackground;
+                uniform float menuBlur;
+                uniform vec4 menuShadowColor;
+                uniform float menuShadowBlur;
+                uniform vec2 menuShadowOffset;
+                uniform float lineWidth;
+                uniform float padding;
+                uniform float extra;
+                out vec4 color;
+
+                float roundBoxDist(vec2 uv, vec2 size, vec2 center, float radius) {
+                    vec2 vec = abs(uv - center) - .5 * size + radius;
+                    return length(max(vec, 0.)) + min(max(vec.x, vec.y), 0.) - radius;
+                }
+
+                void main() {
+                    float distance = roundBoxDist(uv, menuSize, menuCenter, menuRadius);
+                    vec2 normalDir = max(abs(uv - menuCenter) - .5 * menuSize + menuRadius, 0.);
+                    vec2 normal = dot(normalDir, normalDir) > 1e-7 ? normalize(normalDir) * sign(uv - menuCenter) : vec2(0);
+                    float contentOffset = clamp(distance / padding + 1., 0., 1.);
+                    color = texture(content, (round(uv - menuMin + extra - .5) + .5 + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
+                    vec4 background = vec4(0);
+                    if (distance <= lineWidth + .5) {
+                        vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin;
+                        for (int i = -8; i <= 8; i++) {
+                            background += texture(blur, (sampleCenter + vec2(0, i) * .125 * menuBlur) / blurSize) * exp(-.03125 * float(i * i));
+                        }
+                        background *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
+                        background = mix(background, vec4(menuBackground.rgb, 1), menuBackground.a);
+                    }
+                    color += (1. - color.a) * (.125 + .5 * (2.75 - background) * background) * smoothstep(-1., 0., distance) * smoothstep(lineWidth + .5, lineWidth - .5, distance);
+                    if (distance < 0.) {
+                        color += (1. - color.a) * background;
+                    } else {
+                        float shadowDistance = roundBoxDist(uv, menuSize - menuShadowBlur, menuCenter + menuShadowOffset, menuRadius);
+                        color += (1. - color.a) * menuShadowColor * smoothstep(1., 0., (.5 + shadowDistance) / menuShadowBlur);
+                    }
+                    color *= opacity;
+                }
+                `),
+                program => program.delete(),
+            ]);
+            renderer.draw({
+                target,
+                program: this.#mainProgram,
+                mesh: renderer.boxMesh2D,
+                uniforms: {
+                    posTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).vertexMat3(target),
+                    uvTransform: layout.box.copy.expand(.5 * this.style.menuShadowBlur).move(this.style.menuShadowOffset).include(layout.box.copy.expand(this.style.lineWidth)).multOrigin(devicePixelRatio).transformMat3(),
+                    opacity: this.#visibilityAnim.values.opacity,
+                    blur: this.#blurTexture,
+                    blurMin: blurBox.min,
+                    blurSize: blurBox.size,
+                    content: this.#contentTexture,
+                    contentSize: this.#contentTexture.size,
+                    targetSize: target.size,
+                    menuSize: layout.box.size.scale(devicePixelRatio),
+                    menuMin: layout.box.min.scale(devicePixelRatio),
+                    menuCenter: layout.box.center.scale(devicePixelRatio),
+                    menuRadius: this.style.menuRadius * devicePixelRatio,
+                    menuBackground: this.style.menuBackground,
+                    menuBlur: this.style.menuBlur * devicePixelRatio,
+                    menuShadowColor: this.style.menuShadowColor,
+                    menuShadowBlur: this.style.menuShadowBlur * devicePixelRatio,
+                    menuShadowOffset: this.style.menuShadowOffset.copy.scale(devicePixelRatio),
+                    lineWidth: this.style.lineWidth * devicePixelRatio,
+                    padding: this.style.menuPadding.left * devicePixelRatio,
+                    extra: extra * devicePixelRatio,
+                },
+                blending: Renderer.Blending.overlay,
+            }).exec();
+        }
         this.#instantAnim = false;
     };
 };
@@ -794,6 +813,7 @@ globalThis.PaneHolder = class PaneHolder extends Widget {
             animHeight += paneLayout.height * snapshot[`pane${id}`].value;
             return [id, paneLayout];
         }));
+        height = Math.max(height, 0);
         if (this.#height != height) {
             this.#visibilityAnim.targets.height = height / this.style.paneAnimHeightScale;
             this.#visibilityAnim.values.height = animHeight / this.style.paneAnimHeightScale;
@@ -930,7 +950,6 @@ globalThis.Pane = class Pane extends ElementHolder {
                 blending: Renderer.Blending.add,
             }).exec();
         }
-        this.#instantAnim = false;
     };
 
     #visible = true;
@@ -952,7 +971,6 @@ globalThis.Pane = class Pane extends ElementHolder {
         }
     }
 
-    #instantAnim = true;
     #visibilityAnim;
     get partiallyVisible() {
         if (this.#visibilityAnim) {
@@ -1636,7 +1654,7 @@ let inputs = new Inputs(document, true);
 let menuHolder = new MenuHolder(style, renderer, translations, cache);
 
 
-let inspector = menuHolder.menu().position(1500, 1500);
+let inspector = menuHolder.menu().position(1500, 1500).show();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
