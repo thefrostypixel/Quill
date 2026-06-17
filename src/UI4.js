@@ -1006,9 +1006,12 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
         layout.primaryTrigger?.handler?.(e);
         if (!e.captured && e instanceof Inputs.Event.Secondary) {
             layout.secondaryTrigger?.handler?.(e.primary);
+        } else if (!e.captured && e instanceof Inputs.Event.Primary) {
+            this.primaryHandler?.(e);
         }
     });
     triggers = (triggers, pos, layout) => {
+        let addSelf = this.primaryHandler;
         let componentTriggers = [];
         let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
         for (let i = 0; i < this.#components.length; i++) {
@@ -1017,15 +1020,19 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
             this.#components[i].triggers?.(componentsTriggers, componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), layout.componentLayouts[i]);
             componentPos.x += layout.componentLayouts[i].width;
             if (this.#primary == this.#components[i] && componentsTriggers.length) {
-                triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+                addSelf = true;
                 layout.primaryTrigger = componentsTriggers.shift();
             } else if (this.#secondary == this.#components[i] && componentsTriggers.length) {
+                addSelf = true;
                 layout.secondaryTrigger = componentsTriggers[0];
             }
             componentTriggers.push(...componentsTriggers);
         }
+        if (addSelf) {
+            triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+        }
         componentTriggers.forEach(trigger => trigger.box.expand(this.style.tilePadding));
-        triggers.push(...componentTriggers)
+        triggers.push(...componentTriggers);
     };
 
     render = (target, pos, layout) => {
@@ -1090,6 +1097,18 @@ MenuHolder.Tile = class Tile extends MenuHolder.Widget {
     set secondary(secondary) {
         this.#secondary = secondary;
     }
+
+    #primaryHandler;
+    get primaryHandler() {
+        return this.#primaryHandler;
+    }
+    set primaryHandler(primaryHandler) {
+        this.#primaryHandler = primaryHandler;
+    }
+    onPrimary = primaryHandler => {
+        this.primaryHandler = primaryHandler;
+        return this;
+    };
 };
 
 MenuHolder.Tile.Component = class Component extends MenuHolder.Widget {
@@ -1615,7 +1634,7 @@ inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 
 let textPane = inspectorPaneHolder.pane("text");
 let textTitle = textPane.title("inspector.text");
-let textFamily = textPane.tile("text.family", "The font family.");
+let textFamily = textPane.tile("text.family", "The font family.").onPrimary(console.log);
 let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
 let textRandomSwitch = textRandom.switch(false).makePrimary();
 let textItalic = textPane.tile("text.italic");
