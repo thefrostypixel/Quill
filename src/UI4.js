@@ -472,14 +472,15 @@ globalThis.Menu = class Menu extends ElementHolder {
 
     #height = 0;
     layout = (layout, targetSize) => {
-        let width = layout.width = Math.ceil(Math.min(targetSize.x - this.style.menuSpacing.xTotal, this.style.menuWidth));
+        let spacing = this.style.menuSpacing.copy.includeScreenInsets();
+        let width = layout.width = Math.ceil(Math.min(targetSize.x - spacing.xTotal, this.style.menuWidth));
         let layouts = layout.layouts = this.elements.map(e => {
             let layout = new Layout(e, width - this.style.menuPadding.xTotal);
             e.layout?.(layout);
             return layout;
         });
         let contentHeight = layouts.reduce((height, layout) => height + layout.height, this.style.menuPadding.yTotal);
-        let height = Math.min(targetSize.y - this.style.menuSpacing.yTotal, contentHeight);
+        let height = Math.min(targetSize.y - spacing.yTotal, contentHeight);
         if (this.#height != height) {
             if (this.#visible) {
                 this.#visibilityAnim.targets.height = height / this.style.menuVisibilityAnimHeightScale;
@@ -487,7 +488,7 @@ globalThis.Menu = class Menu extends ElementHolder {
             this.#visibilityAnim.values.height = height * this.#visibilityAnim.values.opacity / this.style.menuVisibilityAnimHeightScale;
         }
         this.#height = layout.height = Math.round(this.#visibilityAnim.values.height * this.style.menuVisibilityAnimHeightScale);
-        let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, this.style.menuSpacing.left), targetSize.x - this.style.menuSpacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - layout.height, this.style.menuSpacing.bottom), targetSize.y - layout.height - this.style.menuSpacing.top));
+        let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, spacing.left), targetSize.x - spacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - layout.height, spacing.bottom), targetSize.y - layout.height - spacing.top));
         layout.box = new Box2(corner, new Vec2(width, layout.height).add(corner));
         this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - layout.height);
     };
@@ -1656,7 +1657,7 @@ let menuHolder = new MenuHolder(style, renderer, translations, cache);
 
 let inspector = menuHolder.menu().position(1500, 1500).show();
 // let inspectorTitle = inspector.title("inspector");
-// inspector.title("There’s not really anything to title here; however it’s important to test line breaks for very long titles............................................................................");
+// inspector.title("There’s not really anything to title here; though it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
 let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}, {id: "document", name: "inspector.document"}], "text");
 let inspectorPaneHolder = inspector.paneHolder("text");
@@ -1665,7 +1666,7 @@ inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 let textPane = inspectorPaneHolder.pane("text");
 let textTitle = textPane.title("inspector.text");
 let textFamily = textPane.tile("text.family", "The font family.").onPrimary(console.log);
-let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; however it’s also important to test line breaks for very long descriptions.");
+let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; though it’s also important to test line breaks for very long descriptions.");
 let textRandomSwitch = textRandom.switch(false).makePrimary();
 let textItalic = textPane.tile("text.italic");
 let textItalicSwitch = textItalic.switch(false).makePrimary();
