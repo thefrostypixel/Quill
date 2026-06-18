@@ -47,6 +47,19 @@ let style = {
     tileTextPadding: new Padding2(8, 5),
     tileComponentSpacing: 8,
 
+    submenuLabelSpace: 8,
+    submenuLabelWidth: 128,
+    submenuLabelFont: new Font({
+        size: 16,
+        weight: 400,
+        font: "SF Pro Display",
+        color: Color.okLab({L: .8}),
+        cache,
+    }),
+    submenuChevronSize: new Vec2(28, 28),
+    submenuChevronLineWidth: 2.25,
+    submenuChevronColor: Color.okLab({L: .8}),
+
     switchSize: new Vec2(48, 28),
     switchBackground0: /*Color.okLab({L: .95}, .3)*/Color.okLab({L: .55}),
     switchBackground1: Color.okLab({L: .7, a: -.06, b: -.15}),
@@ -254,6 +267,14 @@ globalThis.Layout = class Layout {
     set layouts(layouts) {
         this.#layouts = layouts || [];
     }
+
+    #onPosition;
+    get onPosition() {
+        return this.#onPosition;
+    }
+    set onPosition(onPosition) {
+        this.#onPosition = onPosition;
+    }
 };
 
 globalThis.Trigger = class Trigger {
@@ -404,6 +425,7 @@ globalThis.Menu = class Menu extends ElementHolder {
     set visible(visible) {
         if (!(this.#visible = !!visible)) {
             this.endPersistence();
+            this.#setHighlighted();
         }
         if (!this.partiallyVisible) {
             this.elements.forEach(e => e.endAnims?.());
@@ -490,6 +512,11 @@ globalThis.Menu = class Menu extends ElementHolder {
         let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, spacing.left), targetSize.x - spacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - layout.height, spacing.bottom), targetSize.y - layout.height - spacing.top));
         layout.box = new Box2(corner, new Vec2(width, layout.height).add(corner));
         this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - layout.height);
+        let pos = new Vec2(layout.box.left + this.style.menuPadding.left, layout.box.top - this.style.menuPadding.top + this.scroll);
+        for (let i = 0; i < this.elements.length; i++) {
+            layout.layouts[i].onPosition?.(pos.copy);
+            pos.y -= layout.layouts[i].height;
+        }
     };
 
     triggers = layout => {
@@ -504,55 +531,66 @@ globalThis.Menu = class Menu extends ElementHolder {
     };
 
     handle = (e, layout) => {
-        if (Trigger.contains(layout.box, this.style.menuRadius, e)) {
-            if (e instanceof Inputs.Event.Positioned) {
-                let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
-                let offset = layout.box.min.sub(extra, extra - this.scroll);
-                e.pos.sub(offset);
-                e.lastPos?.sub(offset);
-                e.startPos?.sub(offset);
-                for (let trigger of this.triggers(layout).toReversed()) {
-                    if (e.captured) {
-                        break;
+        if (this.visible) {
+            if (Trigger.contains(layout.box, this.style.menuRadius, e)) {
+                if (e instanceof Inputs.Event.Positioned) {
+                    let extra = Math.ceil(this.style.menuPadding.max * (.5 * Math.PI - 1));
+                    let offset = layout.box.min.sub(extra, extra - this.scroll);
+                    e.pos.sub(offset);
+                    e.lastPos?.sub(offset);
+                    e.startPos?.sub(offset);
+                    for (let trigger of this.triggers(layout).toReversed()) {
+                        if (e.captured) {
+                            break;
+                        }
+                        trigger.handle(e, layout);
                     }
-                    trigger.handle(e, layout);
-                }
-                e.pos.add(offset);
-                e.lastPos?.add(offset);
-                e.startPos?.add(offset);
-                if (e instanceof Inputs.Event.Scroll) {
-                    if (!e.captured) {
-                        this.scroll = Math.min(Math.max(this.scroll - e.locked.y, 0), layout.overflow);
-                    }
-                } else {
-                    this.#setHighlighted();
-                }
-            } else {
-                if (this.#highlighted) {
-                    if (this.triggers(layout).includes(this.#highlighted)) {
-                        this.#highlighted.handle(e);
+                    e.pos.add(offset);
+                    e.lastPos?.add(offset);
+                    e.startPos?.add(offset);
+                    if (e instanceof Inputs.Event.Scroll) {
+                        if (!e.captured) {
+                            this.scroll = Math.min(Math.max(this.scroll - e.locked.y, 0), layout.overflow);
+                        }
                     } else {
                         this.#setHighlighted();
                     }
-                }
-                if (!e.captured && e instanceof Inputs.Event.Directional) {
-                    let triggers = this.triggers(layout);
+                } else {
                     if (this.#highlighted) {
-                        let perpAxis = e.axis == "x" ? "y" : "x";
-                        let limit = (triggers = triggers.filter(trigger => e.dir[e.axis] * this.#highlighted.box.center[e.axis] < e.dir[e.axis] * trigger.box.center[e.axis] && trigger.box.min[perpAxis] < this.#highlighted.box.max[perpAxis] && this.#highlighted.box.min[perpAxis] < trigger.box.max[perpAxis])).reduce((limit, trigger) => Math.min(limit, e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "max" : "min"][e.axis]), Infinity);
-                        this.#setHighlighted(triggers.filter(trigger => e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "min" : "max"][e.axis] < limit).reduce((closest, trigger) => closest ? (Math.abs(trigger.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) < Math.abs(closest.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) ? trigger : closest) : trigger, undefined) || this.#highlighted);
-                        e.capture();
-                    } else {
-                        this.#setHighlighted(triggers[0]);
+                        if (this.triggers(layout).includes(this.#highlighted)) {
+                            this.#highlighted.handle(e);
+                        } else {
+                            this.#setHighlighted();
+                        }
+                    }
+                    if (!e.captured) {
+                        if (e instanceof Inputs.Event.Directional) {
+                            let triggers = this.triggers(layout);
+                            if (this.#highlighted) {
+                                let perpAxis = e.axis == "x" ? "y" : "x";
+                                let limit = (triggers = triggers.filter(trigger => e.dir[e.axis] * this.#highlighted.box.center[e.axis] < e.dir[e.axis] * trigger.box.center[e.axis] && trigger.box.min[perpAxis] < this.#highlighted.box.max[perpAxis] && this.#highlighted.box.min[perpAxis] < trigger.box.max[perpAxis])).reduce((limit, trigger) => Math.min(limit, e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "max" : "min"][e.axis]), Infinity);
+                                this.#setHighlighted(triggers.filter(trigger => e.dir[e.axis] * trigger.box[e.dir.x > 0 || e.dir.y > 0 ? "min" : "max"][e.axis] < limit).reduce((closest, trigger) => closest ? (Math.abs(trigger.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) < Math.abs(closest.box.center[perpAxis] - this.#highlighted.box.center[perpAxis]) ? trigger : closest) : trigger, undefined) || this.#highlighted);
+                                e.capture();
+                            } else {
+                                this.#setHighlighted(triggers[0]);
+                            }
+                        } else if (e instanceof Inputs.Event.Escape) {
+                            if (this.persistent) {
+                                this.#setHighlighted();
+                            } else {
+                                this.hide();
+                            }
+                        }
                     }
                 }
-            }
-            e.capture();
-        } else if (!e.captured) {
-            if (e instanceof Inputs.Event.Scroll) {
                 e.capture();
-            } else if (!this.persistent) {
-                this.hide();
+            } else if (!e.captured) {
+                if (!(e instanceof Inputs.Event.Scroll) && !this.persistent) {
+                    this.hide();
+                } else {
+                    this.#setHighlighted();
+                }
+                e.capture();
             }
         }
     };
@@ -821,6 +859,7 @@ globalThis.PaneHolder = class PaneHolder extends Widget {
         }
         layout.height = Math.round(this.#visibilityAnim.values.height * this.style.paneAnimHeightScale);
         Object.values(layout.paneLayouts).forEach(paneLayout => paneLayout.size = new Vec2(paneLayout.width, paneLayout.height = layout.height));
+        layout.onPosition = pos => Object.keys(this.#panes).forEach(id => layout.paneLayouts[id].onPosition?.(pos));
     };
 
     triggers = (triggers, pos, layout) => {
@@ -890,6 +929,12 @@ globalThis.Pane = class Pane extends ElementHolder {
         }
         this.#height = height;
         layout.height = Math.round(this.#visibilityAnim ? this.#visibilityAnim.values.height * this.style.paneAnimHeightScale : height);
+        layout.onPosition = pos => {
+            for (let i = 0; i < this.elements.length; i++) {
+                layout.elementLayouts[i].onPosition?.(pos.copy);
+                pos.y -= layout.elementLayouts[i].height;
+            }
+        };
     };
 
     triggers = (triggers, pos, layout) => {
@@ -1030,13 +1075,21 @@ globalThis.Tile = class Tile extends Widget {
             return componentLayout;
         });
         layout.height = this.style.tilePadding.yTotal + Math.max(layout.textHeight = this.style.tileTextPadding.yTotal + this.style.nameFont.height * (layout.nameLines = this.style.nameFont.break(layout.name = this.translations.translate(this.name), layout.width - this.style.tilePadding.xTotal - this.style.tileTextPadding.xTotal - (layout.componentWidth = layout.componentLayouts.reduce((width, layout) => width + this.style.tileComponentSpacing + layout.width, 0)))).length + this.style.descriptionFont.height * (layout.descriptionLines = this.style.descriptionFont.break(layout.description = this.translations.translate(this.description), layout.width - this.style.tilePadding.xTotal - layout.componentWidth)).length, layout.componentHeight = layout.componentLayouts.reduce((height, layout) => Math.max(height, layout.height), 0));
+        layout.onPosition = pos => {
+            let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
+            for (let i = 0; i < this.#components.length; i++) {
+                componentPos.x += this.style.tileComponentSpacing;
+                layout.componentLayouts[i].onPosition?.(componentPos.copy.sub(0, layout.componentHeight - layout.componentLayouts[i].height), pos, layout);
+                componentPos.x += layout.componentLayouts[i].width;
+            }
+        };
     };
 
     #trigger = new Trigger((e, layout) => {
         layout.primaryTrigger?.handler?.(e);
         if (!e.captured && e instanceof Inputs.Event.Secondary) {
             layout.secondaryTrigger?.handler?.(e.primary);
-        } else if (!e.captured && e instanceof Inputs.Event.Primary) {
+        } else if (!e.captured && (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm)) {
             this.primaryHandler?.(e);
         }
     });
@@ -1069,7 +1122,7 @@ globalThis.Tile = class Tile extends Widget {
         // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + layout.width, pos.y - layout.height)));
         let componentPos = new Vec2(pos.x + layout.width - layout.componentWidth - this.style.tilePadding.right, pos.y - this.style.tilePadding.top - .5 * (layout.height - layout.componentHeight - this.style.tilePadding.yTotal));
         pos.x += this.style.tilePadding.left + this.style.tileTextPadding.left;
-        pos.y -= this.style.tilePadding.top+ .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal + this.style.tileTextPadding.yTotal);
+        pos.y -= this.style.tilePadding.top + .5 * (layout.height - layout.textHeight - this.style.tilePadding.yTotal + this.style.tileTextPadding.yTotal);
         layout.nameLines.forEach(line => {
             pos.y -= this.style.nameFont.ascent;
             this.style.nameFont.draw(target, line, pos, devicePixelRatio).exec();
@@ -1151,6 +1204,148 @@ globalThis.Component = class Component extends Widget {
         this.owner.secondary = this;
         return this;
     };
+};
+
+globalThis.Submenu = class Submenu extends Component {
+    constructor(owner, remover, label) {
+        super(owner, () => {
+            remover();
+            this.menu.remove();
+        });
+        this.label = label;
+        this.#menu = this.menuHolder.menu();
+    }
+
+    layout = layout => {
+        layout.width = (this.label ? this.style.submenuLabelSpace + this.style.submenuLabelWidth : 0) + this.style.submenuChevronSize.x;
+        layout.height = this.style.submenuChevronSize.y;
+        layout.onPosition = (_, tilePos, tileLayout) => this.menu.pos = tilePos.copy.add(.5 * tileLayout.width, 0);
+    };
+
+    #trigger = new Trigger(e => {
+        if (e instanceof Inputs.Event.Primary || e instanceof Inputs.Event.Confirm) {
+            this.menu.show();
+            e.capture();
+        }
+    });
+    triggers = (triggers, pos, layout) => {
+        triggers.push(this.#trigger.set(pos, layout, this.style.tileRadius));
+        if (this.label) {
+            this.#trigger.box.left = Math.max(this.#trigger.box.left, this.#trigger.box.right - this.style.submenuLabelSpace - this.style.submenuLabelFont.box(this.translations.translate(this.label)).width + 5 / 28 * layout.height - this.style.submenuChevronSize.x);
+        }
+    };
+
+    #program;
+    render = (target, pos, layout) => {
+        if (this.label) {
+            pos.x += this.style.submenuLabelSpace;
+            // drawDebugBox(target, new Box2(pos, new Vec2(pos.x + this.style.submenuLabelWidth, pos.y - layout.height)).multOrigin(devicePixelRatio));
+            let label = this.translations.translate(this.label);
+            if (this.style.submenuLabelFont.box(label).width > this.style.submenuLabelWidth + 5 / 28 * layout.height) {
+                let min = 0;
+                let max = label.length;
+                let best = "";
+                while (min <= max) {
+                    let mid = Math.floor(.5 * (min + max));
+                    if (this.style.submenuLabelFont.box(`${label.slice(0, mid)}…`).width <= this.style.submenuLabelWidth + 5 / 28 * layout.height) {
+                        best = `${label.slice(0, mid)}…`;
+                        min = mid + 1;
+                    } else {
+                        max = mid - 1;
+                    }
+                }
+                label = best || "…";
+            }
+            this.style.submenuLabelFont.draw(target, label, new Vec2(pos.x + this.style.submenuLabelWidth - this.style.submenuLabelFont.box(label).width + 5 / 28 * layout.height, pos.y - .5 * (layout.height - this.style.submenuLabelFont.height - this.style.tilePadding.yTotal + this.style.tileTextPadding.yTotal) - this.style.submenuLabelFont.ascent), devicePixelRatio).exec();
+        }
+        let box = new Box2(new Vec2(pos.x += this.label ? this.style.submenuLabelWidth : 0, pos.y), new Vec2(pos.x + this.style.submenuChevronSize.x, pos.y - layout.height)).multOrigin(devicePixelRatio);
+        // drawDebugBox(target, box);
+        this.#program = this.storage.use("SubmenuHandleChevronProgram", () => [
+            this.renderer.program(`#version 300 es
+            precision mediump float;
+
+            in vec2 pos;
+            uniform mat3 posTransform;
+            uniform mat3 uvTransform;
+            out vec2 uv;
+
+            void main() {
+                uv = (uvTransform * vec3(pos, 1)).xy;
+                gl_Position = vec4((posTransform * vec3(pos, 1)).xy, 0, 1);
+            }
+            `, `#version 300 es
+            precision mediump float;
+
+            in vec2 uv;
+            uniform vec2 p;
+            uniform vec2 v1;
+            uniform vec2 v2;
+            uniform float submenuChevronLineWidth;
+            uniform vec4 submenuChevronColor;
+            out vec4 color;
+
+            float lineDist(vec2 uv, vec2 p, vec2 v) {
+                return length(uv - p - v * clamp(dot(uv - p, v) / dot(v, v), 0., 1.));
+            }
+
+            void main() {
+                float d1 = lineDist(uv, p, v1);
+                float d2 = lineDist(uv, p + v1, v2);
+                float d = min(d1, d2);
+                color = submenuChevronColor * smoothstep(submenuChevronLineWidth - .5, submenuChevronLineWidth - 1.5, d);
+            }
+            `),
+            program => program.delete(),
+        ]);
+        this.renderer.draw({
+            target,
+            program: this.#program,
+            mesh: renderer.boxMesh2D,
+            uniforms: {
+                posTransform: box.vertexMat3(target),
+                uvTransform: box.transformMat3(),
+                p : box.min.add((this.label ? 14 : 11.5) / 28 * box.width, 5 / 28 * box.height),
+                v1: new Vec2(9 / 28 * box.width, 9 / 28 * box.height),
+                v2: new Vec2(-9 / 28 * box.width, 9 / 28 * box.height),
+                submenuChevronLineWidth: this.style.submenuChevronLineWidth * devicePixelRatio,
+                submenuChevronColor: this.style.submenuChevronColor,
+            },
+            blending: Renderer.Blending.overlay,
+        }).exec();
+    };
+
+    #label;
+    get label() {
+        return this.#label;
+    }
+    set label(label) {
+        this.#label = `${label || ""}`;
+    }
+
+    #menu;
+    get menu() {
+        return this.#menu;
+    }
+
+    get visible() {
+        return this.menu.visible;
+    }
+    set visible(visible) {
+        this.menu.visible = visible;
+    }
+    hide = () => {
+        this.menu.hide();
+        return this;
+    };
+    show = () => {
+        this.menu.show();
+        return this;
+    };
+
+    get elements() {
+        return this.menu.elements;
+    }
+    add = (constructor, ...args) => this.menu.add(constructor, ...args);
 };
 
 globalThis.Switch = class Switch extends Component {
@@ -1662,7 +1857,12 @@ inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 
 let textPane = inspectorPaneHolder.add("text");
 let textTitle = textPane.add(Title, "inspector.text");
-let textFamily = textPane.add(Tile, "text.family", "The font family.").onPrimary(console.log);
+let textFamily = textPane.add(Tile, "text.family"/*, "The font family."*/);
+let textFamilySubmenu = textFamily.add(Submenu, "SF Pro").makePrimary();
+textFamilySubmenu.add(Tile, "SF Pro").onPrimary(() => {textFamilySubmenu.label = "SF Pro"; textFamilySubmenu.hide()});
+textFamilySubmenu.add(Tile, "SF Pro Display").onPrimary(() => {textFamilySubmenu.label = "SF Pro Display"; textFamilySubmenu.hide()});
+textFamilySubmenu.add(Tile, "SF Pro Display Italic").onPrimary(() => {textFamilySubmenu.label = "SF Pro Display Italic"; textFamilySubmenu.hide()});
+textFamilySubmenu.add(Tile, "SF Pro Display Italic Semibold").onPrimary(() => {textFamilySubmenu.label = "SF Pro Display Italic Semibold"; textFamilySubmenu.hide()});
 let textRandom = textPane.add(Tile, "And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; though it’s also important to test line breaks for very long descriptions.");
 let textRandomSwitch = textRandom.add(Switch, false).makePrimary();
 let textItalic = textPane.add(Tile, "text.italic");
