@@ -424,7 +424,9 @@ globalThis.Menu = class Menu extends ElementHolder {
         return this.#visible;
     }
     set visible(visible) {
-        this.#visible = visible;
+        if (!(this.#visible = !!visible)) {
+            this.endPersistence();
+        }
         if (!this.partiallyVisible) {
             this.elements.forEach(e => e.endAnims?.());
         }
@@ -443,6 +445,24 @@ globalThis.Menu = class Menu extends ElementHolder {
     get partiallyVisible() {
         return !!this.#visibilityAnim.values.opacity;
     }
+
+    #persistent = false;
+    get persistent() {
+        return this.#persistent;
+    }
+    set persistent(persistent) {
+        if (this.#persistent = !!persistent) {
+            this.show();
+        }
+    }
+    persist = () => {
+        this.persistent = true;
+        return this;
+    };
+    endPersistence = () => {
+        this.persistent = false;
+        return this;
+    };
 
     #highlighted;
     #highlightOpacity;
@@ -487,7 +507,8 @@ globalThis.Menu = class Menu extends ElementHolder {
             }
             this.#visibilityAnim.values.height = height * this.#visibilityAnim.values.opacity / this.style.menuVisibilityAnimHeightScale;
         }
-        this.#height = layout.height = Math.round(this.#visibilityAnim.values.height * this.style.menuVisibilityAnimHeightScale);
+        this.#height = height;
+        layout.height = Math.round(this.#visibilityAnim.values.height * this.style.menuVisibilityAnimHeightScale);
         let corner = new Vec2(Math.min(Math.max(this.pos.x - .5 * width, spacing.left), targetSize.x - spacing.right - width), Math.min(Math.max(this.pos.y + this.style.menuPadding.top - layout.height, spacing.bottom), targetSize.y - layout.height - spacing.top));
         layout.box = new Box2(corner, new Vec2(width, layout.height).add(corner));
         this.scroll = Math.min(Math.max(this.scroll, 0), layout.overflow = contentHeight - layout.height);
@@ -552,8 +573,8 @@ globalThis.Menu = class Menu extends ElementHolder {
         } else if (!e.captured) {
             if (e instanceof Inputs.Event.Scroll) {
                 e.capture();
-            } else {
-                console.log("Outside menu.");
+            } else if (!this.persistent) {
+                this.hide();
             }
         }
     };
@@ -1655,7 +1676,7 @@ let inputs = new Inputs(document, true);
 let menuHolder = new MenuHolder(style, renderer, translations, cache);
 
 
-let inspector = menuHolder.menu().position(1500, 1500).show();
+let inspector = menuHolder.menu().position(1500, 1500).persist();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; though it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
