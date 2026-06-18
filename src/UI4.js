@@ -3,21 +3,6 @@ document.body.appendChild(renderer.canvas);
 
 let cache = new Cache();
 
-let boxVertexShader = `#version 300 es
-
-    in vec2 pos;
-    uniform vec2 boxPosition;
-    uniform vec2 boxSize;
-    uniform vec2 cutoutPosition;
-    uniform vec2 cutoutSize;
-    out vec2 uv;
-
-    void main() {
-        uv = cutoutPosition + cutoutSize * pos;
-        gl_Position = vec4(boxPosition.x + boxSize.x * pos.x, boxPosition.y + boxSize.y * pos.y, 0, 1);
-    }
-`;
-
 let centerImage = (src, dst) => {
     let ratio = Math.min(src.width / dst.width, src.height / dst.height);
     let width = src.width - dst.width * ratio;
