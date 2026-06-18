@@ -365,18 +365,11 @@ globalThis.ElementHolder = class ElementHolder extends Widget {
     get elements() {
         return Array.from(this.#elements);
     }
-    #addElement = (constructor, ...args) => {
+    add = (constructor, ...args) => {
         let element = new constructor(this, () => this.#elements.splice(this.#elements.indexOf(element), 1), ...args);
         this.#elements.push(element);
         return element;
     };
-
-    paneHolder = selected => this.#addElement(PaneHolder, selected);
-    pane = () => this.#addElement(Pane);
-    title = title => this.#addElement(Title, title);
-    tile = (name, description) => this.#addElement(Tile, name, description);
-    tabBar = (tabs = [], selected = tabs[0]?.id || "") => this.#addElement(TabBar, tabs, selected);
-    divider = () => this.#addElement(Divider);
 };
 
 globalThis.Menu = class Menu extends ElementHolder {
@@ -844,7 +837,7 @@ globalThis.PaneHolder = class PaneHolder extends Widget {
     get panes() {
         return Object.assign(Object.create(null), this.#panes);
     }
-    pane = id => {
+    add = id => {
         if (!this.#panes[id]) {
             this.#visibilityAnim.axes[`pane${id}`] = this.#selected == id;
             return this.#panes[id] = new Pane(this, () => {
@@ -1111,13 +1104,11 @@ globalThis.Tile = class Tile extends Widget {
     }
 
     #components = [];
-    #addComponent = (constructor, ...args) => {
+    add = (constructor, ...args) => {
         let component = new constructor(this, () => this.#components.splice(this.#components.indexOf(component), 1), ...args);
         this.#components.push(component);
         return component;
     };
-    switch = toggled => this.#addComponent(Switch, toggled);
-    checkmark = (choose, id) => this.#addComponent(Checkmark, choose, id);
 
     #primary;
     get primary() {
@@ -1665,40 +1656,40 @@ let inspector = menuHolder.menu().position(1500, 1500).persist();
 // let inspectorTitle = inspector.title("inspector");
 // inspector.title("There’s not really anything to title here; though it’s important to test line breaks for very long titles............................................................................");
 // let inspectorDivider = inspector.divider();
-let inspectorTabBar = inspector.tabBar([{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}, {id: "document", name: "inspector.document"}], "text");
-let inspectorPaneHolder = inspector.paneHolder("text");
+let inspectorTabBar = inspector.add(TabBar, [{id: "text", name: "inspector.text"}, {id: "table", name: "inspector.table"}, {id: "layout", name: "inspector.layout"}, {id: "document", name: "inspector.document"}], "text");
+let inspectorPaneHolder = inspector.add(PaneHolder, "text");
 inspectorTabBar.onSelect = selected => inspectorPaneHolder.selected = selected;
 
-let textPane = inspectorPaneHolder.pane("text");
-let textTitle = textPane.title("inspector.text");
-let textFamily = textPane.tile("text.family", "The font family.").onPrimary(console.log);
-let textRandom = textPane.tile("And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; though it’s also important to test line breaks for very long descriptions.");
-let textRandomSwitch = textRandom.switch(false).makePrimary();
-let textItalic = textPane.tile("text.italic");
-let textItalicSwitch = textItalic.switch(false).makePrimary();
-let textItalicSwitch2 = textItalic.switch(false).makeSecondary();
-let textUnderline = textPane.tile("text.underline");
-let textUnderlineSwitch = textUnderline.switch(true).makePrimary();
-let textUnderlinePane = textPane.pane();
+let textPane = inspectorPaneHolder.add("text");
+let textTitle = textPane.add(Title, "inspector.text");
+let textFamily = textPane.add(Tile, "text.family", "The font family.").onPrimary(console.log);
+let textRandom = textPane.add(Tile, "And of course it’s also important to test line breaks in the names of tiles.", "There’s not really anything to describe here; though it’s also important to test line breaks for very long descriptions.");
+let textRandomSwitch = textRandom.add(Switch, false).makePrimary();
+let textItalic = textPane.add(Tile, "text.italic");
+let textItalicSwitch = textItalic.add(Switch, false).makePrimary();
+let textItalicSwitch2 = textItalic.add(Switch, false).makeSecondary();
+let textUnderline = textPane.add(Tile, "text.underline");
+let textUnderlineSwitch = textUnderline.add(Switch, true).makePrimary();
+let textUnderlinePane = textPane.add(Pane);
 textUnderlineSwitch.onToggle = toggled => textUnderlinePane.visible = toggled;
-let textUnderlineStyle = textUnderlinePane.tile("line.style");
-let textUnderlineWidth = textUnderlinePane.tile("line.width");
-let textStrikethrough = textPane.tile("text.strikethrough");
-let textStrikethroughSwitch = textStrikethrough.switch(true).makePrimary();
-let textStrikethroughPane = textPane.pane();
+let textUnderlineStyle = textUnderlinePane.add(Tile, "line.style");
+let textUnderlineWidth = textUnderlinePane.add(Tile, "line.width");
+let textStrikethrough = textPane.add(Tile, "text.strikethrough");
+let textStrikethroughSwitch = textStrikethrough.add(Switch, true).makePrimary();
+let textStrikethroughPane = textPane.add(Pane);
 textStrikethroughSwitch.onToggle = toggled => textStrikethroughPane.visible = toggled;
-let textStrikethroughWidth = textStrikethroughPane.tile("line.width");
-let textBaselineTitle = textPane.title("text.baseline");
+let textStrikethroughWidth = textStrikethroughPane.add(Tile, "line.width");
+let textBaselineTitle = textPane.add(Title, "text.baseline");
 let textBaselineChoose = new Choose("base");
-let textBaselineBase = textPane.tile("text.baseline.base");
-let textBaselineBaseCheckmark = textBaselineBase.checkmark(textBaselineChoose, "base").makePrimary();
-let textBaselineSup = textPane.tile("text.baseline.sup");
-let textBaselineSupCheckmark = textBaselineSup.checkmark(textBaselineChoose, "sup").makePrimary();
-let textBaselineSub = textPane.tile("text.baseline.sub");
-let textBaselineSubCheckmark = textBaselineSub.checkmark(textBaselineChoose, "sub").makePrimary();
+let textBaselineBase = textPane.add(Tile, "text.baseline.base");
+let textBaselineBaseCheckmark = textBaselineBase.add(Checkmark, textBaselineChoose, "base").makePrimary();
+let textBaselineSup = textPane.add(Tile, "text.baseline.sup");
+let textBaselineSupCheckmark = textBaselineSup.add(Checkmark, textBaselineChoose, "sup").makePrimary();
+let textBaselineSub = textPane.add(Tile, "text.baseline.sub");
+let textBaselineSubCheckmark = textBaselineSub.add(Checkmark, textBaselineChoose, "sub").makePrimary();
 
-let tablePane = inspectorPaneHolder.pane("table");
-let tableTitle = tablePane.title("inspector.table");
+let tablePane = inspectorPaneHolder.add("table");
+let tableTitle = tablePane.add(Title, "inspector.table");
 
 inputs.onEvent = e => menuHolder.handle(e, menuHolder.layout(new Vec2(innerWidth, innerHeight)));
 
