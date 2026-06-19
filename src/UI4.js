@@ -694,13 +694,16 @@ globalThis.Menu = class Menu extends ElementHolder {
                 uniform sampler2D src;
                 uniform vec2 targetSize;
                 uniform float menuBlur;
+                uniform int menuBlurSamples;
+                uniform float menuBlurExp;
+                uniform float menuBlurMult;
                 out vec4 color;
 
                 void main() {
-                    for (int i = -8; i <= 8; i++) {
-                        color += texture(src, (uv + vec2(i, 0) * .125 * menuBlur) / targetSize) * exp(-.03125 * float(i * i));
+                    for (int i = -menuBlurSamples; i <= menuBlurSamples; i++) {
+                        color += texture(src, (uv + vec2(i, 0) / float(menuBlurSamples) * menuBlur) / targetSize) * exp(menuBlurExp * float(i * i));
                     }
-                    color *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
+                    color *= menuBlurMult;
                 }
                 `),
                 program => program.delete(),
@@ -714,7 +717,10 @@ globalThis.Menu = class Menu extends ElementHolder {
                     uvTransform: blurBox.transformMat3(),
                     src: target,
                     targetSize: target.size,
-                    menuBlur: this.style.menuBlur,
+                    menuBlur: this.style.menuBlur * devicePixelRatio,
+                    menuBlurSamples: Math.ceil(.5 * this.style.menuBlur * devicePixelRatio),
+                    menuBlurExp: -2 / Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) ** 2,
+                    menuBlurMult: 1 / Array.from({length: 2 * Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) + 1}, (_, i) => i / Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0),
                 },
                 blending: Renderer.Blending.overwrite,
             }).exec();
@@ -748,6 +754,9 @@ globalThis.Menu = class Menu extends ElementHolder {
                 uniform float menuRadius;
                 uniform vec4 menuBackground;
                 uniform float menuBlur;
+                uniform int menuBlurSamples;
+                uniform float menuBlurExp;
+                uniform float menuBlurMult;
                 uniform vec4 menuShadowColor;
                 uniform float menuShadowBlur;
                 uniform vec2 menuShadowOffset;
@@ -769,12 +778,11 @@ globalThis.Menu = class Menu extends ElementHolder {
                     color = texture(content, (round(uv - menuMin + extra - .5) + .5 + normal * padding * (asin(contentOffset) - contentOffset)) / contentSize) * (distance > 0. ? sqrt(1. - contentOffset * contentOffset) : 1.);
                     vec4 background = vec4(0);
                     if (distance <= lineWidth + .5) {
-                        vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin;
-                        for (int i = -8; i <= 8; i++) {
-                            background += texture(blur, (sampleCenter + vec2(0, i) * .125 * menuBlur) / blurSize) * exp(-.03125 * float(i * i));
+                        vec2 sampleCenter = uv - (4. - 4. * sqrt(sin(${Math.PI / 2} * clamp(-distance / padding, 0., 1.)))) * normal * padding - blurMin; // 4-4\\sqrt{\\sin\\left(\\frac{\\pi}{2}\\cdot\\min\\left(\\max\\left(-x,0\\right),1\\right)\\right)}
+                        for (int i = -menuBlurSamples; i <= menuBlurSamples; i++) {
+                            background += texture(blur, (sampleCenter + vec2(0, i) / float(menuBlurSamples) * menuBlur) / blurSize) * exp(menuBlurExp * float(i * i));
                         }
-                        background *= ${1 / Array.from({length: 17}, (_, i) => i / 8 - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0)};
-                        background = mix(background, vec4(menuBackground.rgb, 1), menuBackground.a);
+                        background = mix(background * menuBlurMult, vec4(menuBackground.rgb, 1), menuBackground.a);
                     }
                     color += (1. - color.a) * (.125 + .5 * (2.75 - background) * background) * smoothstep(-1., 0., distance) * smoothstep(lineWidth + .5, lineWidth - .5, distance);
                     if (distance < 0.) {
@@ -808,6 +816,9 @@ globalThis.Menu = class Menu extends ElementHolder {
                     menuRadius: this.style.menuRadius * devicePixelRatio,
                     menuBackground: this.style.menuBackground,
                     menuBlur: this.style.menuBlur * devicePixelRatio,
+                    menuBlurSamples: Math.ceil(.5 * this.style.menuBlur * devicePixelRatio),
+                    menuBlurExp: -2 / Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) ** 2,
+                    menuBlurMult: 1 / Array.from({length: 2 * Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) + 1}, (_, i) => i / Math.ceil(.5 * this.style.menuBlur * devicePixelRatio) - 1).reduce((total, t) => total + Math.exp(-2 * t ** 2), 0),
                     menuShadowColor: this.style.menuShadowColor,
                     menuShadowBlur: this.style.menuShadowBlur * devicePixelRatio,
                     menuShadowOffset: this.style.menuShadowOffset.copy.scale(devicePixelRatio),
