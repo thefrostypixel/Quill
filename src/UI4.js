@@ -1359,6 +1359,125 @@ globalThis.Submenu = class Submenu extends Component {
     add = (constructor, ...args) => this.menu.add(constructor, ...args);
 };
 
+globalThis.SelectionRanges = class SelectionRanges {
+    constructor(max = 0) {
+        this.max = max;
+    }
+
+    #max = 0;
+    get max() {
+        return this.#max;
+    }
+    set max(max) {
+        if (isFinite(max)) {
+            this.#max = Math.max(max, 0);
+            for (let i = 0; i < this.#ranges.length; i++) {
+                let range = this.#ranges[i];
+                if (this.#max <= range.max) {
+                    range.start = Math.min(range.start, this.#max);
+                    range.end = Math.min(range.end, this.#max);
+                    range.min = Math.min(range.min, this.#max);
+                    range.max = Math.min(range.max, this.#max);
+                    if (this.#ranges.splice(i + 1, this.#ranges.length - i - 1).includes(this.#latest)) {
+                        this.#latest = this.#ranges[i];
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    #ranges = [];
+    get ranges() {
+        return this.#ranges.map(range => Object.assign({}, range));
+    }
+
+    #latest;
+    add = (pos = this.max) => {
+        pos = Math.min(Math.max(pos, 0), this.max);
+        for (let i = 0; i < this.#ranges.length; i++) {
+            if (pos <= this.#ranges[i].max) {
+                if (pos < this.#ranges[i].min) {
+                    this.#ranges.splice(i, 0, this.#latest = {start: pos, end: pos, min: pos, max: pos});
+                } else if (pos == this.#ranges[i].min) {
+                    this.#ranges[i].start = this.#ranges[i].max;
+                    this.#ranges[i].end = this.#ranges[i].min;
+                    this.#latest = this.#ranges[i];
+                } else if (pos < this.#ranges[i].max) {
+                    this.#latest = undefined;
+                } else {
+                    this.#ranges[i].start = this.#ranges[i].min;
+                    this.#ranges[i].end = this.#ranges[i].max;
+                    this.#latest = this.#ranges[i];
+                }
+                return this;
+            }
+        }
+        this.#ranges.push(this.#latest = {start: pos, end: pos, min: pos, max: pos});
+        return this;
+    };
+    move = (offset = 0) => {
+        this.#latest = undefined;
+        if (offset < 0) {
+            for (let i = this.#ranges.length - 1; 0 <= i; i--) {
+                let range = this.#ranges[i];
+                if (!(range.start = range.end = range.min = range.max = Math.max(range.end + offset, 0))) {
+                    this.#ranges.splice(0, i);
+                    return this;
+                }
+            }
+        } else if (0 < offset) {
+            for (let i = 0; i < this.#ranges.length; i++) {
+                let range = this.#ranges[i];
+                if ((range.start = range.end = range.min = range.max = Math.min(range.end + offset, this.max)) == this.max) {
+                    this.#ranges.splice(i + 1, this.#ranges.length - i - 1);
+                    return this;
+                }
+            }
+        }
+        return this;
+    };
+    expand = (offset = 0) => {
+        this.#latest = undefined;
+        if (this.#ranges.length) {
+            for (let i = 0; i < this.#ranges.length; i++) {
+                let a = this.#ranges[i - 1];
+                let b = this.#ranges[i];
+                b.end = Math.min(Math.max(b.end + offset, 0), this.max);
+                b.min = Math.min(b.start, b.end);
+                b.max = Math.max(b.start, b.end);
+                if (a && a.min <= b.max && b.min <= a.max) {
+                    if (offset < 0) {
+                        a.start = Math.max(a.max, b.max);
+                        a.end = Math.min(a.min, b.min);
+                    } else {
+                        a.start = Math.min(a.min, b.min);
+                        a.end = Math.max(a.max, b.max);
+                    }
+                    a.min = Math.min(a.start, a.end);
+                    a.max = Math.max(a.start, a.end);
+                    this.#ranges.splice(i--, 1);
+                }
+            }
+        }
+        return this;
+    };
+    setLatestEnd = (end = this.#latest?.end) => {
+        if (this.#latest) {
+            this.#latest.end = Math.min(Math.max(end, 0), this.max);
+            this.#latest.min = Math.min(this.#latest.start, this.#latest.end);
+            this.#latest.max = Math.max(this.#latest.start, this.#latest.end);
+            this.#ranges = this.#ranges.filter(range => range == this.#latest || this.#latest.max < range.min || range.max < this.#latest.min);
+        }
+        return this;
+    };
+
+    clear = () => {
+        this.#ranges = [];
+        return this;
+    };
+};
+
 globalThis.Switch = class Switch extends Component {
     constructor(owner, remover, toggled) {
         super(owner, remover);
