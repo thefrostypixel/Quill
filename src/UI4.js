@@ -108,7 +108,7 @@ let style = {
 };
 
 let debugProgram;
-let drawDebugBox = (target, box, fill = Color.lRgb(0, 1, 0, .2), border = Color.okLab(fill.L, fill.a, fill.b, .5 + .5 * fill.alpha)) => {
+let drawDebugBox = (target, box, fill = Color.lRgb(0, 1, 0, .2), border = Color.okLab(fill.L, fill.a, fill.b, .5 + .5 * fill.o)) => {
     debugProgram ??= renderer.program(`#version 300 es
     precision mediump float;
 
@@ -663,7 +663,7 @@ globalThis.Menu = class Menu extends ElementHolder {
                     highlightSize: box.size,
                     highlightCenter: box.center,
                     highlightRadius: this.#highlightPos.values.radius * devicePixelRatio,
-                    highlightColor: this.style.menuHighlightColor.copy.opacity(this.#highlightOpacity.value),
+                    highlightColor: this.style.menuHighlightColor.copy.opacify(this.#highlightOpacity.value),
                 },
                 blending: Renderer.Blending.overlay,
             }).exec();
@@ -1888,7 +1888,7 @@ globalThis.TabBar = class TabBar extends Widget {
                     highlightSize: box.size,
                     highlightCenter: box.center,
                     highlightRadius: this.style.tabBarHighlightRadius * devicePixelRatio,
-                    highlightColor: this.style.tabBarHighlightColor.copy.opacity(this.#highlightOpacity.value),
+                    highlightColor: this.style.tabBarHighlightColor.copy.opacify(this.#highlightOpacity.value),
                 },
                 blending: Renderer.Blending.overlay,
             }).exec();
